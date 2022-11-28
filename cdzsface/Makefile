@@ -1,0 +1,108 @@
+
+# Find where we're running from, so we can store generated files here.
+ifeq ($(origin MAKEFILE_DIR), undefined)
+	MAKEFILE_DIR := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
+endif
+
+CXX = g++
+CC = g++
+AR = ar
+
+HDRDIRS	=./src ./src/sdc ./src/model ./src/socket ./src/deepsort ./src/recognize ./src/tlv ./include ./third ./third/eigen3
+INCLUDES=$(addprefix -I,$(HDRDIRS))
+
+LIBDIRS	=./lib ./third/libopencv
+LDFLAGS	=  $(addprefix -L,$(LIBDIRS)) -Wl,-z,relro,-z,noexecstack,--disable-new-dtags,-rpath,lib/:/usr/lib/:/usr/app/lib:./lib
+LDFLAGS += -lrt -lm -ldl -lpthread -lstdc++
+LDFLAGS += -lMNN -lMNN_CL
+LDFLAGS += -lopencv_core -lopencv_imgproc -lopencv_imgcodecs -lopencv_video -lopencv_highgui -lopencv_videoio
+# LDFLAGS += -lopencv_plot  -lzlib 
+
+
+CFLAGS =-g -Wall -O0
+CXXFLAGS=$(CFLAGS) --std=c++11
+# ARFLAGS := -r
+
+# SRCDIRS	=./src ./src/deepsort
+# SRCEXTS	=.c .cpp
+# SOURCE	=$(foreach d, $(SRCDIRS),$(wildcard $(addprefix $(d)/*,$(SRCEXTS))))
+
+MYFUNC_SRCS := \
+$(wildcard src/*.cpp)\
+$(wildcard src/*.c)\
+$(wildcard src/FaceDetect/*.cpp)\
+$(wildcard src/FaceDetect/*.c)
+# $(wildcard src/model/*.cpp)\
+# $(wildcard src/model/*.c)\
+# $(wildcard src/socket/*.cpp)\
+# $(wildcard src/socket/*.c)\
+# $(wildcard src/deepsort/*.cpp)\
+# $(wildcard src/deepsort/*.c)\
+# $(wildcard src/recognize/*.cpp)\
+# $(wildcard src/recognize/*.c)\
+# $(wildcard src/tlv/*.cpp)\
+# $(wildcard src/tlv/*.c)
+# CORE_CC_ALL_SRCS := $(sort $(CORE_CC_ALL_SRCS))
+# CORE_CC_EXCLUDE_SRCS:=$(wildcard $(MAKEFILE_DIR)src/*test.cc)
+# MINIMAL_SRCS:= $(filter-out $(CORE_CC_EXCLUDE_SRCS), $(CORE_CC_ALL_SRCS))
+# # Where compiled objects are stored.
+GENDIR := $(MAKEFILE_DIR)/gen/
+OBJDIR := $(GENDIR)obj/
+BINDIR := $(GENDIR)bin/
+LIBDIR := $(GENDIR)lib/
+MYFUNC_BINARY := $(BINDIR)test
+
+
+MYFUNC_OBJS := $(addprefix $(OBJDIR), \
+$(patsubst %.c,%.o,$(patsubst %.cpp,%.o,$(MYFUNC_SRCS))))
+
+
+
+$(OBJDIR)%.o: %.cpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
+
+$(OBJDIR)%.o: %.cc
+	@mkdir -p $(dir $@)
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
+
+$(OBJDIR)%.o: %.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
+
+
+$(MYFUNC_BINARY): $(MYFUNC_OBJS)
+	@mkdir -p $(dir $@)
+	$(CXX) $(CXXFLAGS) $(INCLUDES) $(MYFUNC_SRCS) -o $(MYFUNC_BINARY) $(LIBS) $(LDFLAGS)
+
+
+# object files
+object:$(OBJECT)
+$(BINDIRS)/%.o: $(SRCDIRS)/%.c
+	@mkdir -p $(dir $@)
+	$(CC) $(OPTFLAGS) $(CFLAGS) -o $@ -c $<
+$(BINDIRS)/%.o: $(SRCDIRS)/%.cpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(OPTFLAGS) $(CXXFLAGS) -o $@ -c $<
+
+
+
+show:
+	@echo '[File list]:'
+	@echo '	PROGRAM NAME	:$(MAKEFILE_DIR)'
+	@echo '	SOURCE FILES	:$(MYFUNC_OBJS)'
+	@echo '	HEADER FILES	:$(HEADER)'
+	@echo '	OBJECT FILES	:$(OBJECT)'
+	@echo '	DEPEND FILES	:$(DEPEND)'
+
+
+# Gets rid of all generated files.
+clean:
+	rm -rf $./gen
+
+# Gets rid of target files only, leaving the host alone. Also leaves the lib
+# directory untouched deliberately, so we can persist multiple architectures
+# across builds for iOS and Android.
+cleantarget:
+	rm -rf $(OBJDIR)
+	rm -rf $(BINDIR)
