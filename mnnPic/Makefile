@@ -31,13 +31,7 @@ MYFUNC_SRCS := \
 $(wildcard src/*.cpp)\
 $(wildcard src/*.c)\
 $(wildcard src/PicRecognize/*.cpp)\
-$(wildcard src/PicRecognize/*.c)\
-$(wildcard src/FaceDetect/*.cpp)\
-$(wildcard src/FaceDetect/*.c)\
-$(wildcard src/FaceDetectV2/*.cpp)\
-$(wildcard src/FaceDetectV2/*.c)\
-$(wildcard src/FaceRecognize/*.cpp)\
-$(wildcard src/FaceRecognize/*.c)
+$(wildcard src/PicRecognize/*.c)
 # $(wildcard src/model/*.cpp)\
 # $(wildcard src/model/*.c)\
 # $(wildcard src/socket/*.cpp)\

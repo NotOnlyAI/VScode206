@@ -26,6 +26,7 @@
 #include "MNN/Tensor.hpp"
 #include "MNN/ImageProcess.hpp"
 #include "FaceDetect/FaceDetect.hpp"
+#include "FaceDetectV2/FaceDetectV2.hpp"
 #include "PicRecognize/PicRecognize.hpp"
 #include "FaceRecognize/FaceRecognize.hpp"
 
@@ -65,7 +66,7 @@ int main(int argc, char *argv[])
 {
     
     auto handle = dlopen("libMNN_CL.so", RTLD_NOW);
-    cv::Mat img=cv::imread("2.jpg");
+    cv::Mat img=cv::imread("4.jpg");
     // cv::imshow("11",img);
     // cv::waitKey(0);
 
@@ -79,15 +80,20 @@ int main(int argc, char *argv[])
 
 
 
-    std::shared_ptr<FaceRecognize> FaceRecognizeModel=std::make_shared<FaceRecognize>();
-    FaceRecognizeModel->Forward(img);
+    // std::shared_ptr<FaceRecognize> FaceRecognizeModel=std::make_shared<FaceRecognize>();
+    // FaceRecognizeModel->Forward(img);
+
+    std::shared_ptr<FaceDetectV2> FaceDetectV2Model=std::make_shared<FaceDetectV2>();
+    FaceDetectV2Model->Forward(img);
+    FR_Show_bboxes_and_landmarks(img,FaceDetectV2Model->rectinfo,"result.jpg");
 
     while(1)
     {
         std::cout<<"hello world!6"<<std::endl;
         // PicRecognizeModel->Forward(img);
         // FaceDetectModel->Forward(img);
-        FaceRecognizeModel->Forward(img);
+        // FaceRecognizeModel->Forward(img);
+        FaceDetectV2Model->Forward(img);
 
         sleep(1);
     }
