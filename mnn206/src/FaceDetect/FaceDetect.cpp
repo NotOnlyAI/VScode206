@@ -277,7 +277,7 @@ int FaceDetect::decode(std::vector< MNN::Tensor*> &outputTensors_host)
                 SVP_NNIE_SoftMax(&(outputTensors_host[i]->host<float>()[u32OffsetScore]), 2);
                 f32Score0=outputTensors_host[i]->host<float>()[u32OffsetScore];
                 f32Score1=outputTensors_host[i]->host<float>()[u32OffsetScore+1];
-                SVP_NNIE_SoftMax2(f32Score0,f32Score1);
+                
                 
                 // u32Offset = (j * BboxNumEachGrid[i] + k) * 4;
                 // f32X = outputTensors_host[i+4]->host<float>()[u32Offset + 0];

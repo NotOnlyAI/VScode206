@@ -26,7 +26,8 @@
 #include "MNN/Tensor.hpp"
 #include "MNN/ImageProcess.hpp"
 #include "FaceDetect/FaceDetect.hpp"
-#include "FaceDetectV2/FaceDetectV2.hpp"
+#include "FaceDetect/FaceDetect.hpp"
+#include "FaceAlignment/FaceAlignment.hpp"
 #include "PicRecognize/PicRecognize.hpp"
 #include "FaceRecognize/FaceRecognize.hpp"
 
@@ -60,15 +61,33 @@ int FR_Show_bboxes_and_landmarks(cv::Mat image,RectDetectInfo rectinfo,std::stri
     return 1;
 }
 
+int FR_Show_Pts(cv::Mat image,PointDetectInfo landmark68,std::string save_path)
+{
+    cv::Mat image_show=image;
+    
+    for(int i=0;i<68;i++)
+    {
+
+        cv::Point origin;
+        origin.x = landmark68.points[i].x;
+        origin.y = landmark68.points[i].y;
+        cv::circle(image_show, origin,1,cv::Scalar(255, 0, 0),2);
+    }
+    cv::imwrite(save_path,image_show);
+
+    return 1;
+}
+
 
 
 int main(int argc, char *argv[])
 {
     
     auto handle = dlopen("libMNN_CL.so", RTLD_NOW);
-    cv::Mat img=cv::imread("4.jpg");
-    // cv::imshow("11",img);
-    // cv::waitKey(0);
+    cv::Mat img=cv::imread("1.jpg");
+
+    cv::imshow("11",img);
+    cv::waitKey(0);
 
     // std::shared_ptr<FaceDetect> FaceDetectModel=std::make_shared<FaceDetect>();
     // FaceDetectModel->Forward(img);
@@ -83,9 +102,9 @@ int main(int argc, char *argv[])
     // std::shared_ptr<FaceRecognize> FaceRecognizeModel=std::make_shared<FaceRecognize>();
     // FaceRecognizeModel->Forward(img);
 
-    std::shared_ptr<FaceDetectV2> FaceDetectV2Model=std::make_shared<FaceDetectV2>();
-    FaceDetectV2Model->Forward(img);
-    FR_Show_bboxes_and_landmarks(img,FaceDetectV2Model->rectinfo,"result.jpg");
+    std::shared_ptr<FaceAlignment> FaceAlignmentModel=std::make_shared<FaceAlignment>();
+    FaceAlignmentModel->Forward(img);
+    FR_Show_Pts(img,FaceAlignmentModel->landmark68,"result2.jpg");
 
     while(1)
     {
@@ -93,7 +112,7 @@ int main(int argc, char *argv[])
         // PicRecognizeModel->Forward(img);
         // FaceDetectModel->Forward(img);
         // FaceRecognizeModel->Forward(img);
-        FaceDetectV2Model->Forward(img);
+        FaceAlignmentModel->Forward(img);
 
         sleep(1);
     }

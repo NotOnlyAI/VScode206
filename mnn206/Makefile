@@ -36,6 +36,8 @@ $(wildcard src/FaceDetect/*.cpp)\
 $(wildcard src/FaceDetect/*.c)\
 $(wildcard src/FaceDetectV2/*.cpp)\
 $(wildcard src/FaceDetectV2/*.c)\
+$(wildcard src/FaceAlignment/*.cpp)\
+$(wildcard src/FaceAlignment/*.c)\
 $(wildcard src/FaceRecognize/*.cpp)\
 $(wildcard src/FaceRecognize/*.c)
 # $(wildcard src/model/*.cpp)\
