@@ -5,54 +5,50 @@
 
 #include "FaceDetect.hpp"
 #include <opencv2/opencv.hpp>
-#include "nms.h"
+#include "M2utils/nms.h"
 using namespace std;
-
-
-static float s_af32ExpCoef[10][16] = {
-    {1.0f, 1.00024f, 1.00049f, 1.00073f, 1.00098f, 1.00122f, 1.00147f, 1.00171f, 1.00196f, 1.0022f, 1.00244f, 1.00269f, 1.00293f, 1.00318f, 1.00342f, 1.00367f},
-    {1.0f, 1.00391f, 1.00784f, 1.01179f, 1.01575f, 1.01972f, 1.02371f, 1.02772f, 1.03174f, 1.03578f, 1.03984f, 1.04391f, 1.04799f, 1.05209f, 1.05621f, 1.06034f},
-    {1.0f, 1.06449f, 1.13315f, 1.20623f, 1.28403f, 1.36684f, 1.45499f, 1.54883f, 1.64872f, 1.75505f, 1.86825f, 1.98874f, 2.117f, 2.25353f, 2.39888f, 2.55359f},
-    {1.0f, 2.71828f, 7.38906f, 20.0855f, 54.5981f, 148.413f, 403.429f, 1096.63f, 2980.96f, 8103.08f, 22026.5f, 59874.1f, 162755.0f, 442413.0f, 1.2026e+006f, 3.26902e+006f},
-    {1.0f, 8.88611e+006f, 7.8963e+013f, 7.01674e+020f, 6.23515e+027f, 5.54062e+034f, 5.54062e+034f, 5.54062e+034f, 5.54062e+034f, 5.54062e+034f, 5.54062e+034f, 5.54062e+034f, 5.54062e+034f, 5.54062e+034f, 5.54062e+034f, 5.54062e+034f},
-    {1.0f, 0.999756f, 0.999512f, 0.999268f, 0.999024f, 0.99878f, 0.998536f, 0.998292f, 0.998049f, 0.997805f, 0.997562f, 0.997318f, 0.997075f, 0.996831f, 0.996588f, 0.996345f},
-    {1.0f, 0.996101f, 0.992218f, 0.98835f, 0.984496f, 0.980658f, 0.976835f, 0.973027f, 0.969233f, 0.965455f, 0.961691f, 0.957941f, 0.954207f, 0.950487f, 0.946781f, 0.94309f},
-    {1.0f, 0.939413f, 0.882497f, 0.829029f, 0.778801f, 0.731616f, 0.687289f, 0.645649f, 0.606531f, 0.569783f, 0.535261f, 0.502832f, 0.472367f, 0.443747f, 0.416862f, 0.391606f},
-    {1.0f, 0.367879f, 0.135335f, 0.0497871f, 0.0183156f, 0.00673795f, 0.00247875f, 0.000911882f, 0.000335463f, 0.00012341f, 4.53999e-005f, 1.67017e-005f, 6.14421e-006f, 2.26033e-006f, 8.31529e-007f, 3.05902e-007f},
-    {1.0f, 1.12535e-007f, 1.26642e-014f, 1.42516e-021f, 1.60381e-028f, 1.80485e-035f, 2.03048e-042f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f}
-};
-
-static float SVP_NNIE_QuickExp( int s32Value )
-{
-    if( s32Value & 0x80000000 )
-    {
-        s32Value = ~s32Value + 0x00000001;
-        return s_af32ExpCoef[5][s32Value & 0x0000000F] * s_af32ExpCoef[6][(s32Value>>4) & 0x0000000F] * s_af32ExpCoef[7][(s32Value>>8) & 0x0000000F] * s_af32ExpCoef[8][(s32Value>>12) & 0x0000000F] * s_af32ExpCoef[9][(s32Value>>16) & 0x0000000F ];
-    }
-    else
-    {
-        return s_af32ExpCoef[0][s32Value & 0x0000000F] * s_af32ExpCoef[1][(s32Value>>4) & 0x0000000F] * s_af32ExpCoef[2][(s32Value>>8) & 0x0000000F] * s_af32ExpCoef[3][(s32Value>>12) & 0x0000000F] * s_af32ExpCoef[4][(s32Value>>16) & 0x0000000F ];
-    }
-}
-
 
 
 FaceDetect::FaceDetect() {
 
+
+}
+
+
+int FaceDetect::init(int deviceTpye,int print_config)
+{
+    //
+    m_print=print_config;
+
     string mnn_path="./models206/FaceDetect.mnn";
     net = std::shared_ptr<MNN::Interpreter>(MNN::Interpreter::createFromFile(mnn_path.c_str()));
     dimType = MNN::Tensor::TENSORFLOW;
-    
+    MNN_PRINT("Interpreter build, model_path: %s, dimType:%d\n",mnn_path.c_str(),dimType);
 
+    in_h=320;
+    in_w=240;
 
     MNN::ScheduleConfig config;
-    config.type  = MNN_FORWARD_CPU;
+    config.type  = (MNNForwardType)(deviceTpye);
     // config.type=MNN_FORWARD_OPENCL;
     // config.type=MNN_FORWARD_CPU;
     // BackendConfig bnconfig;
     // bnconfig.precision = BackendConfig::Precision_Low;
     // config.backendConfig = &bnconfig; 
     session = net->createSession(config);
+    MNN_PRINT("ScheduleConfig build, config.type: %d \n",config.type);
+
+
+
+    float mean[3]     = {104.0f, 117.0f, 123.0f};
+    float normals[3] = {1.0f, 1.0f, 1.0f};
+    ::memcpy(imconfig.mean, mean, sizeof(mean));
+    ::memcpy(imconfig.normal, normals, sizeof(normals));
+    imconfig.sourceFormat = MNN::CV::BGR;
+    imconfig.destFormat = MNN::CV::BGR;
+    imconfig.filterType = MNN::CV::NEAREST;
+    pretreat=std::shared_ptr<MNN::CV::ImageProcess>(MNN::CV::ImageProcess::create(imconfig));
+    MNN_PRINT("ImageProcess build, sourceFormat: %d, destFormat: %d \n",imconfig.sourceFormat,imconfig.destFormat);
 
 
     input_blob_names={ "x"};
@@ -77,8 +73,7 @@ FaceDetect::FaceDetect() {
     for (int i = 0; i < output_blob_names.size(); i++) {
 		outputTensors_host[i] = new MNN::Tensor(outputTensors[i], dimType);
 	}
-
-
+    
     float memoryUsage = 0.0f;
     net->getSessionInfo(session, MNN::Interpreter::MEMORY, &memoryUsage);
     float flops = 0.0f;
@@ -96,50 +91,68 @@ FaceDetect::FaceDetect() {
     for (int i = 0; i < output_blob_names.size(); i++) {
         // MNN_PRINT("%s\n",output_blob_names[i]);
 		outputTensors_host[i]->printShape();
-	}
+	} 
 
+
+    return 0;
 }
 
 
-int FaceDetect::Forward(cv::Mat &raw_image) {
-
+int FaceDetect::Forward(const M2::ImgData_T &imgdata,M2::DetectResult &rectinfo) {
 
     auto start = chrono::steady_clock::now();
 
-
-    if (raw_image.empty()) {
+    // cv::Mat image(cv::Size(imgdata.width, imgdata.height), CV_8UC3);
+	// image.data =imgdata.data;
+    
+        
+    if (!imgdata.data) {
         std::cout << "image is empty ,please check!" << std::endl;
         return -1;
     }
 
-    image_h = raw_image.rows;
-    image_w = raw_image.cols;
-
-    cv::Mat image;
-    cv::resize(raw_image, image, cv::Size(in_w, in_h));
-
-
-
-    MNN::CV::ImageProcess::Config config;
-    float mean[3]     = {104.0f, 117.0f, 123.0f};
-    float normals[3] = {1.0f, 1.0f, 1.0f};
-    ::memcpy(config.mean, mean, sizeof(mean));
-    ::memcpy(config.normal, normals, sizeof(normals));
-    config.sourceFormat = MNN::CV::BGR;
-    config.destFormat = MNN::CV::BGR;
+    MNN::CV::ImageFormat sourceFormat=(MNN::CV::ImageFormat)imgdata.dataFormat;
+    if(imconfig.sourceFormat!=sourceFormat)
+    {
+        imconfig.sourceFormat = sourceFormat;
+        imconfig.destFormat = MNN::CV::BGR;
+        pretreat=std::shared_ptr<MNN::CV::ImageProcess>(MNN::CV::ImageProcess::create(imconfig));
+    }
+    image_h = imgdata.height;
+    image_w = imgdata.width;
 
 
+    MNN::CV::Matrix trans;
+    trans.setScale((float)(image_w-1) / (float)(in_w-1), (float)(image_h-1) / (float)(in_h-1));
+    pretreat->setMatrix(trans);
+    pretreat->convert((uint8_t *)imgdata.data, image_w,image_h,0,inputTensors_host[0]);
 
-    std::shared_ptr<MNN::CV::ImageProcess> pretreat(MNN::CV::ImageProcess::create(config));
-    pretreat->convert(image.data, in_w, in_h,0,inputTensors_host[0]);
+
+
     inputTensors[0]->copyFromHostTensor(inputTensors_host[0]);
+
+    if(m_print>=1){
+        chrono::duration<double> elapsed = chrono::steady_clock::now() - start;
+        cout << "FaceDetect imgPrepare time:" << elapsed.count() << " s" << endl;
+    }
+
 
 
     net->runSession(session);
 
+    if(m_print>=1){
+        chrono::duration<double> elapsed1 = chrono::steady_clock::now() - start;
+        cout << "FaceDetect runSession time:" << elapsed1.count() << " s" << endl;
+    }
+
     for (int i = 0; i < output_blob_names.size(); i++) {
 		outputTensors[i]->copyToHostTensor(outputTensors_host[i]);
 	}
+
+    if(m_print>=1){
+        chrono::duration<double> elapsed2 = chrono::steady_clock::now() - start;
+        cout << "FaceDetect copyToHost time:" << elapsed2.count() << " s" << endl;
+    }
 
 
     
@@ -149,58 +162,26 @@ int FaceDetect::Forward(cv::Mat &raw_image) {
     // }
     
     decode(outputTensors_host);
-
-
-    auto end = chrono::steady_clock::now();
-    chrono::duration<double> elapsed = end - start;
-    cout << "inference time:" << elapsed.count() << " s" << endl;
-
-    return 0;
-}
-
-
-
-static int SVP_NNIE_SoftMax( float* pf32Src, uint32_t u32Num)
-{
-    float f32Max = 0;
-    float f32Sum = 0;
-    uint32_t i = 0;
-
-    for(i = 0; i < u32Num; ++i)
+    
+    rectinfo.nNum=m_rectinfo.nNum;
+    for (int j = 0; j < rectinfo.nNum; j++)
     {
-        if(f32Max < pf32Src[i])
+        rectinfo.boxes[j] = m_rectinfo.boxes[j];
+        rectinfo.labels[j] = m_rectinfo.labels[j];
+    }
+
+    if(m_print>=1){
+        chrono::duration<double> elapsed3 = chrono::steady_clock::now() - start;
+        cout << "FaceDetect Decode time:" << elapsed3.count() << " s" << endl;
+    }
+
+    if(m_print>=2){
+        for (int j = 0; j < rectinfo.nNum; j++)
         {
-            f32Max = pf32Src[i];
+            cout <<j << ": " << rectinfo.boxes[j].xmin << " " << rectinfo.boxes[j].ymin << " "<< rectinfo.boxes[j].width << " "<< rectinfo.boxes[j].height << " "<<rectinfo.labels[j].score<< endl;
         }
     }
 
-    for(i = 0; i < u32Num; ++i)
-    {
-        pf32Src[i] = (float)SVP_NNIE_QuickExp((int)((pf32Src[i] - f32Max))*4096);
-        f32Sum += pf32Src[i];
-    }
-
-    for(i = 0; i < u32Num; ++i)
-    {
-        pf32Src[i] /= f32Sum;
-    }
-    return 0;
-}
-
-
-static int SVP_NNIE_SoftMax2( float &pf32Src1,float &pf32Src2)
-{
-    float f32Max = 0;
-    float f32Sum = 0;
-    uint32_t i = 0;
-
-    if(f32Max <  pf32Src1) f32Max =  pf32Src1;
-    if(f32Max <  pf32Src2) f32Max =  pf32Src2;
-    pf32Src1 = (float)SVP_NNIE_QuickExp((int)((pf32Src1 - f32Max))*4096);
-    pf32Src2 = (float)SVP_NNIE_QuickExp((int)((pf32Src2 - f32Max))*4096);
-    f32Sum =pf32Src1+pf32Src2;
-    pf32Src1 /= f32Sum;
-    pf32Src2 /= f32Sum;
     return 0;
 }
 
@@ -224,10 +205,10 @@ int FaceDetect::decode(std::vector< MNN::Tensor*> &outputTensors_host)
     std::vector<float*> nms_boxs={};
 
 
-    for (int i = 0; i < output_blob_names.size(); i++) {
-        // MNN_PRINT("%s\n",output_blob_names[i]);
-		outputTensors_host[i]->printShape();
-	}
+    // for (int i = 0; i < output_blob_names.size(); i++) {
+    //     // MNN_PRINT("%s\n",output_blob_names[i]);
+	// 	outputTensors_host[i]->printShape();
+	// }
 
     int start=0;
     int end=4;
@@ -285,7 +266,7 @@ int FaceDetect::decode(std::vector< MNN::Tensor*> &outputTensors_host)
                 // f32Width = outputTensors_host[i+4]->host<float>()[u32Offset + 2];
                 // f32Height = outputTensors_host[i+4]->host<float>()[u32Offset + 3];
 
-                // // cout<<N<<":"<<f32Score0<<","<<f32Score1<<endl;
+                
 
                 // cout<<N<<":"<<f32X<<","<<f32Y <<","<<f32Width<<","<<f32Height<<","<<f32Score1<<endl;
 
@@ -333,30 +314,28 @@ int FaceDetect::decode(std::vector< MNN::Tensor*> &outputTensors_host)
             }
         }
     }
-    cout<<"BboxNum:"<<BboxNum<<endl;
+    // cout<<"BboxNum:"<<BboxNum<<endl;
     nms_boxs = nms(vec_boxs, 0.5,0.5,nms_indexes);
-    cout<<"nms_boxs:"<<nms_boxs.size()<<endl;
+    // cout<<"nms_boxs:"<<nms_boxs.size()<<endl;
     
-    rectinfo.nFaceNum=0;
+    m_rectinfo.nNum=0;
     // landmarkinfo.nFaceNum=0;
 
     for (int j = 0; j < int(nms_boxs.size()); j++)
     {
-        RectDetect rect;
-        LabelDetect label_;
-        rect.x=nms_boxs.at(j)[0]*image_w;
-        rect.y=nms_boxs.at(j)[1]*image_h;
+        M2::Box rect;
+        M2::Label label_;
+        rect.xmin=nms_boxs.at(j)[0]*image_w;
+        rect.ymin=nms_boxs.at(j)[1]*image_h;
         rect.width=nms_boxs.at(j)[2]*image_w;
         rect.height=nms_boxs.at(j)[3]*image_h;
-        label_.label=1;
+        label_.cls=1;
         label_.score=nms_boxs.at(j)[4];
 
-        rectinfo.rects[j] = rect;
-        rectinfo.labels[j] = label_;
+        m_rectinfo.boxes[j] = rect;
+        m_rectinfo.labels[j] = label_;
 
         
-
-
         // STRU_Landmark_T landmark_t;
         // landmark_t.point[0].x=nms_landmarks.at(j)[0]*float(origin_image_width);
         // landmark_t.point[0].y=nms_landmarks.at(j)[1]*float(origin_image_height);
@@ -374,16 +353,50 @@ int FaceDetect::decode(std::vector< MNN::Tensor*> &outputTensors_host)
 
     }
 
-    rectinfo.nFaceNum=rectinfo.nFaceNum+int(nms_boxs.size());
+    m_rectinfo.nNum=m_rectinfo.nNum+int(nms_boxs.size());
     // landmarkinfo.nFaceNum=landmarkinfo.nFaceNum+int(nms_boxs.size());
-    cout<<"rectinfo.nFaceNum:"<<rectinfo.nFaceNum<<endl;
+    // cout<<"rectinfo.nFaceNum:"<<rectinfo.nFaceNum<<endl;
     return 1;
 
 }
 
 
 
+int FaceDetect::visImg(const M2::ImgData_T &imagedata,const M2::DetectResult &rectinfo)
+{
+    
+
+    cv::Mat ori_image(cv::Size(imagedata.width, imagedata.height), CV_8UC3);
+	ori_image.data =imagedata.data;
+
+    cv::Mat image=ori_image.clone();
+    
+
+    for(int i=0;i<rectinfo.nNum;i++)
+    {
+        std::string text =std::to_string(rectinfo.labels[i].score);
+        int font_face = cv::FONT_HERSHEY_COMPLEX;
+        double font_scale = 1;
+        int thickness = 1;
+    //    int baseline;
+    //    cv::Size text_size = cv::getTextSize(text, font_face, font_scale, thickness, &baseline);
+        // 将文本框居中绘制
+        cv::Point origin;
+        origin.x = rectinfo.boxes[i].xmin+20;
+        origin.y = rectinfo.boxes[i].ymin+20;
+        cv::putText(image, text, origin, font_face, font_scale, cv::Scalar(0, 255, 255), thickness, 8, 0);
+
+        cv::Rect r = cv::Rect(rectinfo.boxes[i].xmin, rectinfo.boxes[i].ymin, rectinfo.boxes[i].width, rectinfo.boxes[i].height);
+        cv::rectangle(image, r, cv::Scalar(255, 0, 0), 1, 8, 0);
+    }
+    cv::imshow("1",image);
+    cv::waitKey(0);
+    return 0;
+}
+
+
 FaceDetect::~FaceDetect() {
+    
     net->releaseModel();
     net->releaseSession(session);
     for (int i = 0; i < input_blob_names.size(); i++) {
@@ -392,5 +405,6 @@ FaceDetect::~FaceDetect() {
     for (int i = 0; i < output_blob_names.size(); i++) {
 		delete outputTensors_host[i];
 	}
+
 }
 

@@ -10,37 +10,16 @@
 #include "MNN/MNNDefine.h"
 #include "MNN/Tensor.hpp"
 #include "MNN/ImageProcess.hpp"
-#include <opencv2/opencv.hpp>
+
 #include <algorithm>
 #include <iostream>
 #include <string>
 #include <vector>
 #include <memory>
 #include <chrono>
+#include "models206_typedef.h"
+#include <opencv2/opencv.hpp>
 
-
-#define MAXFACECOUNT	200
-typedef struct RectDetect
-{
-	int x;
-	int y;
-	int width;
-	int height;
-}RectDetect;
-
-
-typedef struct LabelDetect
-{
-	int label;
-	float score;
-}LabelDetect;
-
-typedef struct RectDetectInfo
-{
-	int nFaceNum;
-	RectDetect rects[MAXFACECOUNT];
-	LabelDetect labels[MAXFACECOUNT];
-}RectDetectInfo;
 
 
 
@@ -50,15 +29,25 @@ public:
 
     ~FaceDetect();
 
-    int Forward(cv::Mat &raw_image);
+    int Forward(const M2::ImgData_T &imgdata,M2::DetectResult &re);
 
-    RectDetectInfo  rectinfo;
+    int init(int deviceTpye,int print_config);
+
+
+    int visImg(const M2::ImgData_T &imgdata,const M2::DetectResult &re);
+
+
+    M2::DetectResult  m_rectinfo;
+    bool model_is_ok=false;
 
 private:
 
     int decode(std::vector< MNN::Tensor*> &outputTensors_host);
 
     std::shared_ptr<MNN::Interpreter> net;
+    std::shared_ptr<MNN::CV::ImageProcess> pretreat;
+    MNN::CV::ImageProcess::Config imconfig;
+
     MNN::Session *session = nullptr;
     MNN::Tensor::DimensionType dimType = MNN::Tensor::CAFFE;
 
@@ -75,11 +64,11 @@ private:
 
 
 
-    int in_w=240;
-    int in_h=320;
+    int in_w;
+    int in_h;
     int image_h;
     int image_w;
-    
+    int m_print;
 
 };
 

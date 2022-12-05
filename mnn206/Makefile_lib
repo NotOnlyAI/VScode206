@@ -19,8 +19,8 @@ LDFLAGS += -lopencv_core -lopencv_imgproc -lopencv_imgcodecs -lopencv_video -lop
 # LDFLAGS += -lopencv_plot  -lzlib 
 
 
-CFLAGS =-g -Wall -O0
-CXXFLAGS=$(CFLAGS) --std=c++11
+CFLAGS =-g -Wall -O0 -shared -fPIC 
+CXXFLAGS=$(CFLAGS) --std=c++11 #-DOPENCV
 # ARFLAGS := -r
 
 # SRCDIRS	=./src ./src/deepsort
@@ -28,18 +28,24 @@ CXXFLAGS=$(CFLAGS) --std=c++11
 # SOURCE	=$(foreach d, $(SRCDIRS),$(wildcard $(addprefix $(d)/*,$(SRCEXTS))))
 
 MYFUNC_SRCS := \
-$(wildcard src/*.cpp)\
-$(wildcard src/*.c)\
-$(wildcard src/PicRecognize/*.cpp)\
-$(wildcard src/PicRecognize/*.c)\
+$(wildcard src/models206.cpp)\
+$(wildcard src/models206.c)\
+$(wildcard src/M2utils/*.cpp)\
+$(wildcard src/M2utils/*.c)\
 $(wildcard src/FaceDetect/*.cpp)\
 $(wildcard src/FaceDetect/*.c)\
-$(wildcard src/FaceDetectV2/*.cpp)\
-$(wildcard src/FaceDetectV2/*.c)\
-$(wildcard src/FaceAlignment/*.cpp)\
-$(wildcard src/FaceAlignment/*.c)\
-$(wildcard src/FaceRecognize/*.cpp)\
-$(wildcard src/FaceRecognize/*.c)
+$(wildcard src/LaneDetect/*.cpp)\
+$(wildcard src/LaneDetect/*.c)
+# $(wildcard src/PicRecognize/*.cpp)\
+# $(wildcard src/PicRecognize/*.c)\
+# $(wildcard src/FaceDetectV2/*.cpp)\
+# $(wildcard src/FaceDetectV2/*.c)\
+# $(wildcard src/FaceAlignment/*.cpp)\
+# $(wildcard src/FaceAlignment/*.c)\
+# $(wildcard src/DataSrc/*.cpp)\
+# $(wildcard src/DataSrc/*.c)\
+# $(wildcard src/FaceRecognize/*.cpp)\
+# $(wildcard src/FaceRecognize/*.c)
 # $(wildcard src/model/*.cpp)\
 # $(wildcard src/model/*.c)\
 # $(wildcard src/socket/*.cpp)\
@@ -58,7 +64,7 @@ GENDIR := $(MAKEFILE_DIR)/gen/
 OBJDIR := $(GENDIR)obj/
 BINDIR := $(GENDIR)bin/
 LIBDIR := $(GENDIR)lib/
-MYFUNC_BINARY := $(BINDIR)test
+MYFUNC_BINARY := $(BINDIR)/lib/libmodels206.so
 
 
 MYFUNC_OBJS := $(addprefix $(OBJDIR), \

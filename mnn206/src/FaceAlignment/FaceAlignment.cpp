@@ -155,7 +155,7 @@ int FaceAlignment::Forward(cv::Mat &raw_image) {
 
     auto end = chrono::steady_clock::now();
     chrono::duration<double> elapsed = end - start;
-    cout << "inference time:" << elapsed.count() << " s" << endl;
+    cout << "FaceAlignment inference time:" << elapsed.count() << " s" << endl;
 
     return 0;
 }
