@@ -29,7 +29,7 @@ public:
 
     ~FaceDetect();
 
-    int Forward(const M2::ImgData_T &imgdata,M2::DetectResult &re);
+    int Forward(const M2::ImgData_T &imgdata,M2::DetectResult &re,int max_or_mid);
 
     int init(int deviceTpye,int print_config);
 

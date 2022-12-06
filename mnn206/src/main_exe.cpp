@@ -51,7 +51,7 @@ int FaceDetect_visImg(const M2::ImgData_T &imagedata,const M2::DetectResult &rec
         cv::Rect r = cv::Rect(rectinfo.boxes[i].xmin, rectinfo.boxes[i].ymin, rectinfo.boxes[i].width, rectinfo.boxes[i].height);
         cv::rectangle(image, r, cv::Scalar(255, 0, 0), 1, 8, 0);
     }
-    cv::imshow("1",image);
+    cv::imshow("out",image);
     cv::waitKey(0);
     return 0;
 }
@@ -67,7 +67,8 @@ void LaneDetect_visImg(const M2::ImgData_T &imagedata, std::vector<M2::lane_DECO
 
     float sx = float(imagedata.width) / float(512.0);
     float sy = float(imagedata.height) / float(288.0);
-    cv::Mat qqq = cv::Mat::zeros(720, 1280, CV_8UC3);
+//    cv::Mat qqq = cv::Mat::zeros(720, 1280, CV_8UC3);
+    std::cout<<"final_lane.size():"<<final_lane.size()<<std::endl;
     for (int i = 0; i < final_lane.size(); i++)
     {
         for (int j = 0; j < final_lane[i].Lane.size() - 1; j++) {
@@ -86,12 +87,30 @@ void LaneDetect_visImg(const M2::ImgData_T &imagedata, std::vector<M2::lane_DECO
 }
 
 
+int FR_Show_PTS(const M2::ImgData_T &imagedata,const M2::LandmarkInfo &landmarks)
+{
+    cv::Mat ori_image(cv::Size(imagedata.width, imagedata.height), CV_8UC3);
+	ori_image.data =imagedata.data;
+
+    cv::Mat image=ori_image.clone();
+    for(int i=0;i<68;i++)
+    {
+        cv::Point p1(landmarks.landmark[i].x ,landmarks.landmark[i].y);
+        std::cout << i <<"  x: "<< landmarks.landmark[i].x << "   y: "<< landmarks.landmark[i].y<<std::endl;
+        cv::circle(image, p1, 1, cv::Scalar(0, 255, 0), -1); // ç”»åŠå¾„ä¸º1çš„åœ†(ç”»ç‚¹ï¿?
+    }
+    cv::imshow("11",image);
+    cv::waitKey(0);
+    return 1;
+}
+
+
 
 int main(int argc, char *argv[])
 {
     
-    // auto handle = dlopen("libMNN_CL.so", RTLD_NOW);
-    cv::Mat image=cv::imread("l1.jpg");
+    auto handle = dlopen("libMNN_CL.so", RTLD_NOW);
+    cv::Mat image=cv::imread("2.jpg");
     // cv::Mat image;
     // cv::resize(raw_image, image, cv::Size(240, 320));
 
@@ -100,25 +119,43 @@ int main(int argc, char *argv[])
     imagedata.data=image.data;
     imagedata.width=image.cols;
     imagedata.height=image.rows;
+    imagedata.channel=image.channels();
     imagedata.stride=0;
+    imagedata.depth=0;
     imagedata.dataFormat=M2::ImageFormat::BGR;
+
+    M2::DetectResult rectinfo;
+    M2_FaceDetect(imagedata,rectinfo,2);
+    // for(int i=0;i<rectinfo.nNum;i++)
+    // {
+    //     M2::LandmarkInfo landmark68;
+    //     M2_FaceAlignment(imagedata,rectinfo.boxes[i],landmark68);
+    //     for(int j=0;j<68;j++)
+    //     {
+    //         cout<<landmark68.landmark[j].x<<" ,"<<landmark68.landmark[j].y<<endl;
+    //     }
+    //     FR_Show_PTS(imagedata,landmark68);
+    // }
+
+    // cout<<"here"<<endl;
+    // FaceDetect_visImg(imagedata,rectinfo);
 
     // while(1)
     // {
     //     M2::DetectResult rectinfo;
-    //     M2_FaceDetect(imagedata,rectinfo);
+    //     M2_FaceDetect(imagedata,rectinfo,2);
     //     FaceDetect_visImg(imagedata,rectinfo);
     //     sleep(1);
     // }
 
-    while(1)
-    {
-        std::vector<M2::lane_DECODE> final_lane;
-        M2_LaneDetect(imagedata,final_lane);
-        LaneDetect_visImg(imagedata,final_lane);
-        sleep(1);
-    }
-
+    // while(1)
+    // {
+    //     std::vector<M2::lane_DECODE> final_lane;
+    //     M2_LaneDetect(imagedata,final_lane);
+    //     std::cout<<"final_lane.size():"<<final_lane.size()<<std::endl;
+    //     LaneDetect_visImg(imagedata,final_lane);
+    //     sleep(1);
+    // }
 
     return 0;
 }

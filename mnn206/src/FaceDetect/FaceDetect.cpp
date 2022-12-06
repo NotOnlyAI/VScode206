@@ -6,6 +6,7 @@
 #include "FaceDetect.hpp"
 #include <opencv2/opencv.hpp>
 #include "M2utils/nms.h"
+#include "M2utils/process.h"
 using namespace std;
 
 
@@ -98,13 +99,17 @@ int FaceDetect::init(int deviceTpye,int print_config)
 }
 
 
-int FaceDetect::Forward(const M2::ImgData_T &imgdata,M2::DetectResult &rectinfo) {
+int FaceDetect::Forward(const M2::ImgData_T &imgdata,M2::DetectResult &rectinfo,int max_or_mid) {
 
     auto start = chrono::steady_clock::now();
 
     // cv::Mat image(cv::Size(imgdata.width, imgdata.height), CV_8UC3);
 	// image.data =imgdata.data;
     
+    // cv::Mat image(cv::Size(imgdata.width, imgdata.height), CV_8UC3);
+	// image.data =imgdata.data;
+	// cv::imshow("in",image);
+	// cv::waitKey(0);
         
     if (!imgdata.data) {
         std::cout << "image is empty ,please check!" << std::endl;
@@ -162,6 +167,8 @@ int FaceDetect::Forward(const M2::ImgData_T &imgdata,M2::DetectResult &rectinfo)
     // }
     
     decode(outputTensors_host);
+
+
     
     rectinfo.nNum=m_rectinfo.nNum;
     for (int j = 0; j < rectinfo.nNum; j++)
@@ -169,6 +176,29 @@ int FaceDetect::Forward(const M2::ImgData_T &imgdata,M2::DetectResult &rectinfo)
         rectinfo.boxes[j] = m_rectinfo.boxes[j];
         rectinfo.labels[j] = m_rectinfo.labels[j];
     }
+
+
+    if(rectinfo.nNum>1 && (max_or_mid==0 || max_or_mid==1))
+    {
+        int index;
+        M2::STRU_RectInfo_T temp_rectinfo;
+        if (max_or_mid==0)
+        {
+            temp_rectinfo=GetMaxFace(rectinfo,index);
+        }else if (max_or_mid==1)
+        {
+            temp_rectinfo=GetMidFace(rectinfo,image_w,image_h,index);
+        }else
+        {
+            temp_rectinfo=GetMaxFace(rectinfo,index);
+        }
+        // STRU_LandmarkInfo_T temp_landmarkinfo;
+        // temp_landmarkinfo.nFaceNum=1;
+        // temp_landmarkinfo.landmark[0]=landmarkinfo.landmark[index];
+        rectinfo=temp_rectinfo;
+        // landmarkinfo=temp_landmarkinfo;
+    }
+
 
     if(m_print>=1){
         chrono::duration<double> elapsed3 = chrono::steady_clock::now() - start;
@@ -397,14 +427,14 @@ int FaceDetect::visImg(const M2::ImgData_T &imagedata,const M2::DetectResult &re
 
 FaceDetect::~FaceDetect() {
     
-    net->releaseModel();
-    net->releaseSession(session);
-    for (int i = 0; i < input_blob_names.size(); i++) {
-		delete inputTensors_host[i];
-	}
-    for (int i = 0; i < output_blob_names.size(); i++) {
-		delete outputTensors_host[i];
-	}
+    // net->releaseModel();
+    // net->releaseSession(session);
+    // for (int i = 0; i < input_blob_names.size(); i++) {
+	// 	delete inputTensors_host[i];
+	// }
+    // for (int i = 0; i < output_blob_names.size(); i++) {
+	// 	delete outputTensors_host[i];
+	// }
 
 }
 

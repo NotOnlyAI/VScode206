@@ -8,7 +8,7 @@ CXX = g++
 CC = g++
 AR = ar
 
-HDRDIRS	=./src ./src/sdc ./src/model ./src/socket ./src/deepsort ./src/recognize ./src/tlv ./include ./third ./third/eigen3
+HDRDIRS	=./src ./include ./third ./third/eigen3
 INCLUDES=$(addprefix -I,$(HDRDIRS))
 
 LIBDIRS	=./lib ./third/libopencv

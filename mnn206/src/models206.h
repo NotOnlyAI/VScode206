@@ -15,11 +15,16 @@
 
 
 
-M2_EXPORT int M2_FaceDetect(const M2::ImgData_T &imgdata,M2::DetectResult &result);
+M2_EXPORT int M2_FaceDetect(const M2::ImgData_T &imgdata,M2::DetectResult &result,int max_or_mid);
 
 
 
 M2_EXPORT int M2_LaneDetect(const M2::ImgData_T &imgdata,std::vector<M2::lane_DECODE> &final_lane);
+
+
+M2_EXPORT int M2_FaceAlignment(const M2::ImgData_T &imgdata,M2::Box cropBox,M2::LandmarkInfo &landmarkinfo);
+
+
 
 #endif
 

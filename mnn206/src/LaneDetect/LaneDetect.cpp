@@ -124,8 +124,10 @@ int LaneDetect::Forward(const M2::ImgData_T &imgdata,std::vector<M2::lane_DECODE
 
         
 
-    // cv::Mat image(cv::Size(imgdata.width, imgdata.height), CV_8UC3);
-	// image.data =imgdata.data;
+     cv::Mat image(cv::Size(imgdata.width, imgdata.height), CV_8UC3);
+	 image.data =imgdata.data;
+	 cv::imshow("in",image);
+	 cv::waitKey(0);
     
     auto start = chrono::steady_clock::now();
     if (!imgdata.data) {
@@ -177,10 +179,17 @@ int LaneDetect::Forward(const M2::ImgData_T &imgdata,std::vector<M2::lane_DECODE
     // }
     
     decode(outputTensors_host);
+    selected_lane(m_decode_lane,200);
+    LeftRightGet(m_select_lane);
 
-    for (int i = 0; i < m_decode_lane.size(); i++){
-        final_lane.push_back(m_decode_lane[i]);
+    for (int i = 0; i < m_final_lane_with_type.size(); i++){
+        final_lane.push_back(m_final_lane_with_type[i]);
     }
+
+    m_decode_lane.clear();
+    m_select_lane.clear();
+    m_final_lane_with_type.clear();
+
     if(m_print>=1){
         chrono::duration<double> elapsed3 = chrono::steady_clock::now() - start;
         cout << "LaneDetect Decode time:" << elapsed3.count() << " s" << endl;
@@ -351,15 +360,15 @@ float LaneDetect::calc_err_dis_with_pos(lane_DECODE L_1, lane_DECODE L_2) // �
     return dis;
 }
 
-std::vector<lane_DECODE> LaneDetect::selected_lane(std::vector<lane_DECODE> ALL_LANE, int thresh)
+int LaneDetect::selected_lane(std::vector<lane_DECODE> ALL_LANE, int thresh)
 {
-    std::vector<lane_DECODE> save_LANE = {};
+    // std::vector<lane_DECODE> save_LANE = {};
     sort(ALL_LANE.begin(), ALL_LANE.end(), LessSort);
 
     int NumLane = ALL_LANE.size();
     if (NumLane == 0)
     {
-        return save_LANE;
+        return -1;
     }
 
     bool selected[ALL_LANE.size()] = { false };
@@ -368,7 +377,7 @@ std::vector<lane_DECODE> LaneDetect::selected_lane(std::vector<lane_DECODE> ALL_
     {
         if (selected[i])
             continue;
-        save_LANE.push_back(ALL_LANE[i]);
+        m_select_lane.push_back(ALL_LANE[i]);
         selected[i] = true;
         for (int j = i + 1; j < ALL_LANE.size() - 1; j++)
         {
@@ -379,18 +388,79 @@ std::vector<lane_DECODE> LaneDetect::selected_lane(std::vector<lane_DECODE> ALL_
             }
         }
     }
-    return save_LANE;
+    return 0;
 }
 
+void LaneDetect::LeftRightGet(std::vector<lane_DECODE>& final_lane)
+{
+    float sx1 = float(image_w) / float(in_w);
+    float sy1 = float(image_h) / float(in_h);
+    std::vector<lane_DECODE> right;
+    std::vector<lane_DECODE> left;
+    for (int i = 0; i < final_lane.size(); i++) {
+        for (int j = 0; j < final_lane[i].Lane.size(); j++) {
+            float px = final_lane[i].Lane[j].x * sx1;
+            float py = final_lane[i].Lane[j].y * sy1;
+            if (px > 0 && px < 1280) {
+                if (px - 640 < 0) {
+                    final_lane[i].dis = abs(px - 640);
+                    left.push_back(final_lane[i]);
+                    break;
+                }
+                if (px - 640 >= 0) {
+                    final_lane[i].dis = px - 640;
+                    right.push_back(final_lane[i]);
+                    break;
+                }
+            }
+        }
+    }
+    if (left.size() > 0)
+    {
+        sort(left.begin(), left.end(), moreSort);
+        for (int i = 0; i < left.size(); i++) {
+            if (i == 0) {
+                left[i].LeftRightType = -1;
+            }
+            else
+            {
+                left[i].LeftRightType = -2;
+            }
+            m_final_lane_with_type.push_back(left[i]);
+        }
+    }
+
+    if (right.size() > 0) {
+        sort(right.begin(), right.end(), moreSort);
+        for (int i = 0; i < right.size(); i++) {
+            if (i == 0) {
+                right[i].LeftRightType = 1;
+            }
+            else
+            {
+                right[i].LeftRightType = 2;
+            }
+            m_final_lane_with_type.push_back(right[i]);
+        }
+    }
+}
 
 LaneDetect::~LaneDetect() {
     net->releaseModel();
     net->releaseSession(session);
     for (int i = 0; i < input_blob_names.size(); i++) {
+        delete inputTensors[i];
 		delete inputTensors_host[i];
 	}
     for (int i = 0; i < output_blob_names.size(); i++) {
+        delete outputTensors[i];
 		delete outputTensors_host[i];
 	}
+	inputTensors.clear();
+	inputTensors_host.clear();
+	outputTensors.clear();
+	outputTensors_host.clear();
+	input_blob_names.clear();
+	output_blob_names.clear();
 }
 

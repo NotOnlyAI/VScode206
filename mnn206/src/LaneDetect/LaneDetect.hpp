@@ -38,6 +38,8 @@ public:
 
 
     std::vector<lane_DECODE> m_decode_lane;
+    std::vector<lane_DECODE> m_select_lane;
+    std::vector<lane_DECODE> m_final_lane_with_type;
 
     void visImg(const M2::ImgData_T &imgdata, std::vector<lane_DECODE> final_lane);
     
@@ -46,7 +48,8 @@ private:
 
     
     int decode(std::vector< MNN::Tensor*> &outputTensors_host);
-    std::vector<lane_DECODE> selected_lane(std::vector<lane_DECODE> ALL_LANE, int thresh);
+    int selected_lane(std::vector<lane_DECODE> ALL_LANE, int thresh);
+    void LeftRightGet(std::vector<lane_DECODE>& final_lane);
     float calc_err_dis_with_pos(lane_DECODE L_1, lane_DECODE L_2);
     
 

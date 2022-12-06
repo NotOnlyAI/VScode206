@@ -43,9 +43,11 @@ typedef struct ImgData_T
 	unsigned char* data;
 	int width;             	
 	int height;            	
-	int stride;              
+	int stride; 
+    int channel;
+    int depth;             
 	ImageFormat dataFormat;            
-}ImgData_T,wsImg;
+}STRU_ImgData_T,wsImg;
 
 
 
@@ -56,7 +58,7 @@ typedef struct Box
 	int ymin;
 	int width;
 	int height;
-}Box_s;
+}STRU_Rect_T;
 
 
 typedef struct Label
@@ -71,7 +73,7 @@ typedef struct DetectResult
 	int nNum;
 	Box boxes[MAXOBJECTCOUNT];
 	Label labels[MAXOBJECTCOUNT];
-}DetectResult_s;
+}STRU_RectInfo_T;
 
 
 
@@ -86,6 +88,21 @@ struct lane_DECODE
     int LeftRightType; 
     int dis;
 };
+
+
+
+typedef struct Point2f
+{
+	float x;
+	float y;
+}Point2f_T;
+
+
+typedef struct LandmarkInfo
+{
+	Point2f landmark[68];
+}LandmarkInfo_T;
+
 
 
 

@@ -11,7 +11,7 @@
 #include "MNN/Tensor.hpp"
 #include "MNN/ImageProcess.hpp"
 
-#include "FaceDetect/FaceDetect.hpp"
+#include "models206_typedef.h"
 #include <opencv2/opencv.hpp>
 #include <algorithm>
 #include <iostream>
@@ -30,19 +30,7 @@
 
 
 
-typedef struct PointDetect
-{
-	float x;
-	float y;
-}PointDetect;
-
-
-
-typedef struct PointDetectInfo
-{
-	PointDetect points[68];
-}PointDetectInfo;
-
+using namespace M2;
 
 
 
@@ -52,9 +40,15 @@ public:
 
     ~FaceAlignment();
 
-    int Forward(cv::Mat &raw_image);
+    int Forward(const M2::ImgData_T &imgdata,M2::Box cropBox,M2::LandmarkInfo &landmarkinfo);
 
-    PointDetectInfo  landmark68;
+    int init(int deviceTpye,int print_config);
+    
+
+    LandmarkInfo  landmark68;
+
+    bool model_is_ok=false;
+
 
 private:
 
@@ -64,6 +58,8 @@ private:
 
     std::shared_ptr<MNN::Interpreter> net;
     MNN::Session *session = nullptr;
+    MNN::CV::ImageProcess::Config imconfig;
+    std::shared_ptr<MNN::CV::ImageProcess> pretreat;
     MNN::Tensor::DimensionType dimType = MNN::Tensor::CAFFE;
 
 
