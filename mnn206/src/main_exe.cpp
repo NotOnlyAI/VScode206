@@ -110,22 +110,41 @@ int main(int argc, char *argv[])
 {
     
     auto handle = dlopen("libMNN_CL.so", RTLD_NOW);
-    cv::Mat image=cv::imread("2.jpg");
+    cv::Mat image=cv::imread("l1.jpg");
     // cv::Mat image;
     // cv::resize(raw_image, image, cv::Size(240, 320));
 
 
-    M2::ImgData_T imagedata;
-    imagedata.data=image.data;
-    imagedata.width=image.cols;
-    imagedata.height=image.rows;
-    imagedata.channel=image.channels();
-    imagedata.stride=0;
-    imagedata.depth=0;
-    imagedata.dataFormat=M2::ImageFormat::BGR;
+    // M2::ImgData_T imagedata;
+    // imagedata.data=image.data;
+    // imagedata.width=image.cols;
+    // imagedata.height=image.rows;
+    // imagedata.channel=image.channels();
+    // imagedata.stride=0;
+    // imagedata.depth=0;
+    // imagedata.dataFormat=M2::ImageFormat::BGR;
 
-    M2::DetectResult rectinfo;
-    M2_FaceDetect(imagedata,rectinfo,2);
+    // M2::DetectResult result;
+    // M2_ObjectDetect_ForwardBGR(image,result);
+
+    std::vector<M2::lane_DECODE> final_lane;
+    M2_LaneDetect_ForwardBGR(image,final_lane);
+
+    while(1)
+    {
+        // M2::DetectResult result;
+        // M2_ObjectDetect_ForwardBGR(image,result);
+        std::vector<M2::lane_DECODE> final_lane;
+        M2_LaneDetect_ForwardBGR(image,final_lane);
+        sleep(1);
+    }
+
+
+
+    //     M2::DetectResult rectinfo;
+    // M2_FaceDetect(imagedata,rectinfo,2);
+
+
     // for(int i=0;i<rectinfo.nNum;i++)
     // {
     //     M2::LandmarkInfo landmark68;
@@ -138,20 +157,15 @@ int main(int argc, char *argv[])
     // }
 
     // cout<<"here"<<endl;
+    
     // FaceDetect_visImg(imagedata,rectinfo);
 
-    // while(1)
-    // {
-    //     M2::DetectResult rectinfo;
-    //     M2_FaceDetect(imagedata,rectinfo,2);
-    //     FaceDetect_visImg(imagedata,rectinfo);
-    //     sleep(1);
-    // }
+
 
     // while(1)
     // {
-    //     std::vector<M2::lane_DECODE> final_lane;
-    //     M2_LaneDetect(imagedata,final_lane);
+        // std::vector<M2::lane_DECODE> final_lane;
+        // M2_LaneDetect(imagedata,final_lane);
     //     std::cout<<"final_lane.size():"<<final_lane.size()<<std::endl;
     //     LaneDetect_visImg(imagedata,final_lane);
     //     sleep(1);

@@ -3,78 +3,67 @@
 
 #define clip(x, y) (x < 0 ? 0 : (x > y ? y : x))
 
-#include "FaceDetect.hpp"
+#include "ObjectDetect.hpp"
 #include <opencv2/opencv.hpp>
 #include "M2utils/nms.h"
 #include "M2utils/process.h"
 using namespace std;
 
 
-FaceDetect::FaceDetect() {
-
+ObjectDetect::ObjectDetect() {
 
 }
 
 
-int FaceDetect::init(int deviceTpye,int print_config)
+int ObjectDetect::init(int deviceTpye,int print_config)
 {
     //
     m_print=print_config;
 
-    string mnn_path="./models206/FaceDetect.mnn";
-    net = std::shared_ptr<MNN::Interpreter>(MNN::Interpreter::createFromFile(mnn_path.c_str()));
-    dimType = MNN::Tensor::TENSORFLOW;
-    MNN_PRINT("Interpreter build, model_path: %s, dimType:%d\n",mnn_path.c_str(),dimType);
-
-    in_h=320;
-    in_w=240;
-
+    string mnn_path2="./models206/yolox_s_480_480_extract.mnn";
+    net = std::shared_ptr<MNN::Interpreter>(MNN::Interpreter::createFromFile(mnn_path2.c_str()));
+    dimType = MNN::Tensor::CAFFE;
+    in_h=480;
+    in_w=480;
+    MNN_PRINT("Interpreter1 build, model_path: %s, dimType:%d\n",mnn_path2.c_str(),dimType);
     MNN::ScheduleConfig config;
-    config.type  = (MNNForwardType)(deviceTpye);
-    // config.type=MNN_FORWARD_OPENCL;
-    // config.type=MNN_FORWARD_CPU;
-    // BackendConfig bnconfig;
-    // bnconfig.precision = BackendConfig::Precision_Low;
-    // config.backendConfig = &bnconfig; 
+    config.type=(MNNForwardType)(deviceTpye);
+    config.mode = MNN_GPU_TUNING_NORMAL | MNN_GPU_MEMORY_IMAGE;
+    MNN::BackendConfig backendConfig;
+    backendConfig.precision = MNN::BackendConfig::Precision_Normal;
+    config.backendConfig = &backendConfig;
     session = net->createSession(config);
-    MNN_PRINT("ScheduleConfig build, config.type: %d \n",config.type);
 
-
-
-    float mean[3]     = {104.0f, 117.0f, 123.0f};
+    float mean[3]     = {0.0f, 0.0f, 0.0f};
     float normals[3] = {1.0f, 1.0f, 1.0f};
     ::memcpy(imconfig.mean, mean, sizeof(mean));
     ::memcpy(imconfig.normal, normals, sizeof(normals));
     imconfig.sourceFormat = MNN::CV::BGR;
     imconfig.destFormat = MNN::CV::BGR;
-    imconfig.filterType = MNN::CV::NEAREST;
     pretreat=std::shared_ptr<MNN::CV::ImageProcess>(MNN::CV::ImageProcess::create(imconfig));
-    MNN_PRINT("ImageProcess build, sourceFormat: %d, destFormat: %d \n",imconfig.sourceFormat,imconfig.destFormat);
 
 
-    input_blob_names={ "x"};
+    input_blob_names={"input0"};
     inputTensors.resize(input_blob_names.size());
     inputTensors_host.resize(input_blob_names.size());
     for (int i = 0; i < input_blob_names.size(); i++) {
 		inputTensors[i] = net->getSessionInput(session,input_blob_names[0].c_str());
 	}
-
     for (int i = 0; i < input_blob_names.size(); i++) {
 		inputTensors_host[i] = new MNN::Tensor(inputTensors[i], dimType);
 	}
+// MNN::Tensor::TENSORFLOW
 
-    output_blob_names={ "Identity","Identity_1","Identity_2","Identity_3","Identity_4","Identity_5","Identity_6","Identity_7",};
+    output_blob_names={"798","824","850"};
     outputTensors.resize(output_blob_names.size());
     outputTensors_host.resize(output_blob_names.size());
-
     for (int i = 0; i < output_blob_names.size(); i++) {
 		outputTensors[i] = net->getSessionOutput(session, output_blob_names[i].c_str());
 	}
-
     for (int i = 0; i < output_blob_names.size(); i++) {
 		outputTensors_host[i] = new MNN::Tensor(outputTensors[i], dimType);
 	}
-    
+
     float memoryUsage = 0.0f;
     net->getSessionInfo(session, MNN::Interpreter::MEMORY, &memoryUsage);
     float flops = 0.0f;
@@ -85,12 +74,13 @@ int FaceDetect::init(int deviceTpye,int print_config)
 
 
     for (int i = 0; i < input_blob_names.size(); i++) {
-        // MNN_PRINT("%s\n",input_blob_names[i]);
+        MNN_PRINT("%s\n",input_blob_names[i].c_str());
 		inputTensors_host[i]->printShape();
 	}
 
+
     for (int i = 0; i < output_blob_names.size(); i++) {
-        // MNN_PRINT("%s\n",output_blob_names[i]);
+        MNN_PRINT("%s\n",output_blob_names[i].c_str());
 		outputTensors_host[i]->printShape();
 	} 
 
@@ -99,128 +89,79 @@ int FaceDetect::init(int deviceTpye,int print_config)
 }
 
 
-int FaceDetect::Forward(const M2::ImgData_T &imgdata,M2::DetectResult &rectinfo,int max_or_mid) {
+int ObjectDetect::ForwardBGR(const cv::Mat &image,M2::DetectResult &result) {
+
+
+    //	 cv::imshow("in",image);
+    //	 cv::waitKey(0);
+
 
     auto start = chrono::steady_clock::now();
-
-    // cv::Mat image(cv::Size(imgdata.width, imgdata.height), CV_8UC3);
-	// image.data =imgdata.data;
-    
-    // cv::Mat image(cv::Size(imgdata.width, imgdata.height), CV_8UC3);
-	// image.data =imgdata.data;
-	// cv::imshow("in",image);
-	// cv::waitKey(0);
-        
-    if (!imgdata.data) {
-        std::cout << "image is empty ,please check!" << std::endl;
-        return -1;
-    }
-
-    MNN::CV::ImageFormat sourceFormat=(MNN::CV::ImageFormat)imgdata.dataFormat;
-    if(imconfig.sourceFormat!=sourceFormat)
-    {
-        imconfig.sourceFormat = sourceFormat;
-        imconfig.destFormat = MNN::CV::BGR;
-        pretreat=std::shared_ptr<MNN::CV::ImageProcess>(MNN::CV::ImageProcess::create(imconfig));
-    }
-    image_h = imgdata.height;
-    image_w = imgdata.width;
-
-
-    MNN::CV::Matrix trans;
-    trans.setScale((float)(image_w-1) / (float)(in_w-1), (float)(image_h-1) / (float)(in_h-1));
-    pretreat->setMatrix(trans);
-    pretreat->convert((uint8_t *)imgdata.data, image_w,image_h,0,inputTensors_host[0]);
-
-
-
+    image_h = image.rows;
+    image_w = image.cols;
+    cv::Mat resize_img;
+    cv::resize(image,resize_img,cv::Size(in_w,in_h));
+    pretreat->convert((uint8_t *)resize_img.data, in_w,in_h,0,inputTensors_host[0]);
     inputTensors[0]->copyFromHostTensor(inputTensors_host[0]);
-
-
-    for (int i = 0; i < 20; ++i) {
-            MNN_PRINT("host %f, %f\n", inputTensors_host[0]->host<float>()[i], inputTensors_host[0]->host<float>()[i]);
-    }
-
-    for (int i = 0; i < 20; ++i) {
-            MNN_PRINT("input%f, %f\n", inputTensors[0]->host<float>()[i], inputTensors[0]->host<float>()[i]);
-    }
-
-
-    if(m_print>=1){
-        chrono::duration<double> elapsed = chrono::steady_clock::now() - start;
-        cout << "FaceDetect imgPrepare time:" << elapsed.count() << " s" << endl;
-    }
-
-
-
     net->runSession(session);
-
-    if(m_print>=1){
-        chrono::duration<double> elapsed1 = chrono::steady_clock::now() - start;
-        cout << "FaceDetect runSession time:" << elapsed1.count() << " s" << endl;
-    }
-
     for (int i = 0; i < output_blob_names.size(); i++) {
 		outputTensors[i]->copyToHostTensor(outputTensors_host[i]);
 	}
-
     if(m_print>=1){
         chrono::duration<double> elapsed2 = chrono::steady_clock::now() - start;
-        cout << "FaceDetect copyToHost time:" << elapsed2.count() << " s" << endl;
+        cout << "net time:" << elapsed2.count() << " s" << endl;
+        outputTensors_host[0]->printShape();
+        for (int i = 0; i < 20; ++i) {
+            MNN_PRINT("copy %f\n", outputTensors_host[0]->host<float>()[i]);
+        }
     }
 
 
+    // decode(outputTensors_host);
+
+
     
-    // outputTensors_host[0]->printShape();
-    // for (int i = 0; i < 20; ++i) {
-    //     MNN_PRINT("copy %f, %f\n", outputTensors[0]->host<float>()[i], outputTensors_host[0]->host<float>()[i]);
+    // rectinfo.nNum=m_rectinfo.nNum;
+    // for (int j = 0; j < rectinfo.nNum; j++)
+    // {
+    //     rectinfo.boxes[j] = m_rectinfo.boxes[j];
+    //     rectinfo.labels[j] = m_rectinfo.labels[j];
     // }
-    
-    decode(outputTensors_host);
 
 
-    
-    rectinfo.nNum=m_rectinfo.nNum;
-    for (int j = 0; j < rectinfo.nNum; j++)
-    {
-        rectinfo.boxes[j] = m_rectinfo.boxes[j];
-        rectinfo.labels[j] = m_rectinfo.labels[j];
-    }
+    // if(rectinfo.nNum>1 && (max_or_mid==0 || max_or_mid==1))
+    // {
+    //     int index;
+    //     M2::STRU_RectInfo_T temp_rectinfo;
+    //     if (max_or_mid==0)
+    //     {
+    //         temp_rectinfo=GetMaxFace(rectinfo,index);
+    //     }else if (max_or_mid==1)
+    //     {
+    //         temp_rectinfo=GetMidFace(rectinfo,image_w,image_h,index);
+    //     }else
+    //     {
+    //         temp_rectinfo=GetMaxFace(rectinfo,index);
+    //     }
+    //     // STRU_LandmarkInfo_T temp_landmarkinfo;
+    //     // temp_landmarkinfo.nFaceNum=1;
+    //     // temp_landmarkinfo.landmark[0]=landmarkinfo.landmark[index];
+    //     rectinfo=temp_rectinfo;
+    //     // landmarkinfo=temp_landmarkinfo;
+    // }
 
 
-    if(rectinfo.nNum>1 && (max_or_mid==0 || max_or_mid==1))
-    {
-        int index;
-        M2::STRU_RectInfo_T temp_rectinfo;
-        if (max_or_mid==0)
-        {
-            temp_rectinfo=GetMaxFace(rectinfo,index);
-        }else if (max_or_mid==1)
-        {
-            temp_rectinfo=GetMidFace(rectinfo,image_w,image_h,index);
-        }else
-        {
-            temp_rectinfo=GetMaxFace(rectinfo,index);
-        }
-        // STRU_LandmarkInfo_T temp_landmarkinfo;
-        // temp_landmarkinfo.nFaceNum=1;
-        // temp_landmarkinfo.landmark[0]=landmarkinfo.landmark[index];
-        rectinfo=temp_rectinfo;
-        // landmarkinfo=temp_landmarkinfo;
-    }
+    // if(m_print>=1){
+    //     chrono::duration<double> elapsed3 = chrono::steady_clock::now() - start;
+    //     cout << "ObjectDetect Decode time:" << elapsed3.count() << " s" << endl;
+    // }
 
-
-    if(m_print>=1){
-        chrono::duration<double> elapsed3 = chrono::steady_clock::now() - start;
-        cout << "FaceDetect Decode time:" << elapsed3.count() << " s" << endl;
-    }
-
-    if(m_print>=2){
-        for (int j = 0; j < rectinfo.nNum; j++)
-        {
-            cout <<j << ": " << rectinfo.boxes[j].xmin << " " << rectinfo.boxes[j].ymin << " "<< rectinfo.boxes[j].width << " "<< rectinfo.boxes[j].height << " "<<rectinfo.labels[j].score<< endl;
-        }
-    }
+    // if(m_print>=2){
+    //     for (int j = 0; j < rectinfo.nNum; j++)
+    //     {
+    //         cout <<j << ": " << rectinfo.boxes[j].xmin << " " << rectinfo.boxes[j].ymin << " "<< rectinfo.boxes[j].width << " "<< rectinfo.boxes[j].height << " "<<rectinfo.labels[j].score<< endl;
+    //     }
+    // }
 
     return 0;
 }
@@ -228,7 +169,7 @@ int FaceDetect::Forward(const M2::ImgData_T &imgdata,M2::DetectResult &rectinfo,
 
 
 
-int FaceDetect::decode(std::vector< MNN::Tensor*> &outputTensors_host)
+int ObjectDetect::decode(std::vector< MNN::Tensor*> &outputTensors_host)
 {
     // for (int i = 0; i < 10; ++i) {
     //     MNN_PRINT("func %f, %f\n", outputTensors_host[0]->host<float>()[2*i+0], outputTensors_host[0]->host<float>()[2*i+0]);
@@ -402,7 +343,7 @@ int FaceDetect::decode(std::vector< MNN::Tensor*> &outputTensors_host)
 
 
 
-int FaceDetect::visImg(const M2::ImgData_T &imagedata,const M2::DetectResult &rectinfo)
+int ObjectDetect::visImg(const M2::ImgData_T &imagedata,const M2::DetectResult &rectinfo)
 {
     
 
@@ -435,26 +376,25 @@ int FaceDetect::visImg(const M2::ImgData_T &imagedata,const M2::DetectResult &re
 }
 
 
-FaceDetect::~FaceDetect() {
+ObjectDetect::~ObjectDetect() {
     
-    if (net!=nullptr){
-        net->releaseModel();
-        net->releaseSession(session);
-        for (int i = 0; i < input_blob_names.size(); i++) {
-            // delete inputTensors[i];
-            delete inputTensors_host[i];
-        }
-        for (int i = 0; i < output_blob_names.size(); i++) {
-            // delete outputTensors[i];
-            delete outputTensors_host[i];
-        }
-        inputTensors.clear();
-        inputTensors_host.clear();
-        outputTensors.clear();
-        outputTensors_host.clear();
-        input_blob_names.clear();
-        output_blob_names.clear();
-
-    }
+    // if (net1!=nullptr){
+    //     net1->releaseModel();
+    //     net1->releaseSession(session);
+    //     for (int i = 0; i < input_blob_names1.size(); i++) {
+    //         delete inputTensors1[i];
+    //         delete inputTensors_host1[i];
+    //     }
+    //     for (int i = 0; i < output_blob_names1.size(); i++) {
+    //         delete outputTensors1[i];
+    //         delete outputTensors_host1[i];
+    //     }
+    //     inputTensors1.clear();
+    //     inputTensors_host1.clear();
+    //     outputTensors1.clear();
+    //     outputTensors_host1.clear();
+    //     input_blob_names1.clear();
+    //     output_blob_names1.clear();
+    // }
 }
 

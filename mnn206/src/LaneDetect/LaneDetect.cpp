@@ -16,9 +16,9 @@ LaneDetect::LaneDetect() {
 int LaneDetect::init(int deviceTpye,int print_config){
 
     m_print=print_config;
-    string mnn_path="./models206/LaneDetect.mnn";
+    string mnn_path="./models206/Vega_new_extract.mnn";
     net = std::shared_ptr<MNN::Interpreter>(MNN::Interpreter::createFromFile(mnn_path.c_str()));
-    dimType = MNN::Tensor::TENSORFLOW;
+    dimType = MNN::Tensor::CAFFE;
     MNN_PRINT("LaneDetect Interpreter build, model_path: %s, dimType:%d\n",mnn_path.c_str(),dimType);
 
     in_h=288;
@@ -26,12 +26,11 @@ int LaneDetect::init(int deviceTpye,int print_config){
 
 
     MNN::ScheduleConfig config;
-    config.type  = (MNNForwardType)(deviceTpye);
-    // config.type=MNN_FORWARD_OPENCL;
-    // config.type=MNN_FORWARD_CPU;
-    // BackendConfig bnconfig;
-    // bnconfig.precision = BackendConfig::Precision_Low;
-    // config.backendConfig = &bnconfig; 
+    config.type=(MNNForwardType)(deviceTpye);
+    config.mode = MNN_GPU_TUNING_NORMAL | MNN_GPU_MEMORY_IMAGE;
+    MNN::BackendConfig backendConfig;
+    backendConfig.precision = MNN::BackendConfig::Precision_Normal;
+    config.backendConfig = &backendConfig;
     session = net->createSession(config);
     MNN_PRINT("ScheduleConfig build, config.type: %d \n",config.type);
 
@@ -48,7 +47,7 @@ int LaneDetect::init(int deviceTpye,int print_config){
 
 
 
-    input_blob_names={ "input_1"};
+    input_blob_names={ "input"};
     inputTensors.resize(input_blob_names.size());
     inputTensors_host.resize(input_blob_names.size());
     for (int i = 0; i < input_blob_names.size(); i++) {
@@ -59,7 +58,7 @@ int LaneDetect::init(int deviceTpye,int print_config){
 		inputTensors_host[i] = new MNN::Tensor(inputTensors[i], dimType);
 	}
 
-    output_blob_names={ "Identity","Identity_1"};
+    output_blob_names={ "287","288"};
     outputTensors.resize(output_blob_names.size());
     outputTensors_host.resize(output_blob_names.size());
 
@@ -95,74 +94,25 @@ int LaneDetect::init(int deviceTpye,int print_config){
 
 }
 
-int LaneDetect::Forward(const M2::ImgData_T &imgdata,std::vector<M2::lane_DECODE> &final_lane) {
+int LaneDetect::ForwardBGR(const cv::Mat &image,std::vector<M2::lane_DECODE> &final_lane) {
 
 
 
 
-    // if (raw_image.empty()) {
-    //     std::cout << "image is empty ,please check!" << std::endl;
-    //     return -1;
-    // }
-
-    // image_h = raw_image.rows;
-    // image_w = raw_image.cols;
-
-    // cv::Mat image;
-    // cv::resize(raw_image, image, cv::Size(in_w, in_h));
-
-
-
-    // MNN::CV::ImageProcess::Config config;
-    // float mean[3]     = {123.675f, 116.28f, 103.53f};
-    // float normals[3] = {0.017125f, 0.01751f, 0.01743f};
-    // ::memcpy(config.mean, mean, sizeof(mean));
-    // ::memcpy(config.normal, normals, sizeof(normals));
-    // config.sourceFormat = MNN::CV::BGR;
-    // config.destFormat = MNN::CV::RGB;
-
-
-        
-
-     cv::Mat image(cv::Size(imgdata.width, imgdata.height), CV_8UC3);
-	 image.data =imgdata.data;
-	 cv::imshow("in",image);
-	 cv::waitKey(0);
     
+
     auto start = chrono::steady_clock::now();
-    if (!imgdata.data) {
-        std::cout << "image is empty ,please check!" << std::endl;
-        return -1;
-    }
-
-    MNN::CV::ImageFormat sourceFormat=(MNN::CV::ImageFormat)imgdata.dataFormat;
-    if(imconfig.sourceFormat!=sourceFormat)
-    {
-        imconfig.sourceFormat = sourceFormat;
-        imconfig.destFormat = MNN::CV::BGR;
-        pretreat=std::shared_ptr<MNN::CV::ImageProcess>(MNN::CV::ImageProcess::create(imconfig));
-    }
-    image_h = imgdata.height;
-    image_w = imgdata.width;
-
-
-    MNN::CV::Matrix trans;
-    trans.setScale((float)(image_w-1) / (float)(in_w-1), (float)(image_h-1) / (float)(in_h-1));
-    pretreat->setMatrix(trans);
-    pretreat->convert((uint8_t *)imgdata.data, image_w,image_h,0,inputTensors_host[0]);
+    image_h = image.rows;
+    image_w = image.cols;
+    cv::Mat resize_img;
+    cv::resize(image,resize_img,cv::Size(in_w,in_h));
+    pretreat->convert((uint8_t *)resize_img.data, in_w,in_h,0,inputTensors_host[0]);
 
     inputTensors[0]->copyFromHostTensor(inputTensors_host[0]);
-    if(m_print>=1){
-        chrono::duration<double> elapsed = chrono::steady_clock::now() - start;
-        cout << "LaneDetect imgPrepare time:" << elapsed.count() << " s" << endl;
-    }
+
 
     net->runSession(session);
 
-    if(m_print>=1){
-        chrono::duration<double> elapsed1 = chrono::steady_clock::now() - start;
-        cout << "LaneDetect runSession time:" << elapsed1.count() << " s" << endl;
-    }
 
     for (int i = 0; i < output_blob_names.size(); i++) {
 		outputTensors[i]->copyToHostTensor(outputTensors_host[i]);
@@ -170,14 +120,14 @@ int LaneDetect::Forward(const M2::ImgData_T &imgdata,std::vector<M2::lane_DECODE
 
     if(m_print>=1){
         chrono::duration<double> elapsed2 = chrono::steady_clock::now() - start;
-        cout << "LaneDetect copyToHost time:" << elapsed2.count() << " s" << endl;
+        cout << "LaneDetect time:" << elapsed2.count() << " s" << endl;
+        outputTensors_host[0]->printShape();
+        for (int i = 0; i < 20; ++i) {
+            MNN_PRINT("copy %f\n",  outputTensors_host[0]->host<float>()[i]);
+        }
     }
     
-    // outputTensors_host[0]->printShape();
-    // for (int i = 0; i < 20; ++i) {
-    //     MNN_PRINT("copy %f, %f\n", outputTensors[0]->host<float>()[i], outputTensors_host[0]->host<float>()[i]);
-    // }
-    
+
     decode(outputTensors_host);
     selected_lane(m_decode_lane,200);
     LeftRightGet(m_select_lane);
@@ -446,21 +396,27 @@ void LaneDetect::LeftRightGet(std::vector<lane_DECODE>& final_lane)
 }
 
 LaneDetect::~LaneDetect() {
-    net->releaseModel();
-    net->releaseSession(session);
-    for (int i = 0; i < input_blob_names.size(); i++) {
-        delete inputTensors[i];
-		delete inputTensors_host[i];
-	}
-    for (int i = 0; i < output_blob_names.size(); i++) {
-        delete outputTensors[i];
-		delete outputTensors_host[i];
-	}
-	inputTensors.clear();
-	inputTensors_host.clear();
-	outputTensors.clear();
-	outputTensors_host.clear();
-	input_blob_names.clear();
-	output_blob_names.clear();
+    if (net!=nullptr){
+        net->releaseModel();
+        net->releaseSession(session);
+        for (int i = 0; i < input_blob_names.size(); i++) {
+            // delete inputTensors[i];
+            delete inputTensors_host[i];
+        }
+        for (int i = 0; i < output_blob_names.size(); i++) {
+            // delete outputTensors[i];
+            delete outputTensors_host[i];
+        }
+        inputTensors.clear();
+        inputTensors_host.clear();
+        outputTensors.clear();
+        outputTensors_host.clear();
+        input_blob_names.clear();
+        output_blob_names.clear();
+        m_decode_lane.clear();
+        m_select_lane.clear();
+        m_final_lane_with_type.clear();
+    }
+   
 }
 

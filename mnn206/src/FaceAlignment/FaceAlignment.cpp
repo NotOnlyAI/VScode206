@@ -230,13 +230,24 @@ int FaceAlignment::decode(std::vector< MNN::Tensor*> &outputTensors_host)
 
 
 FaceAlignment::~FaceAlignment() {
-    net->releaseModel();
-    net->releaseSession(session);
-    for (int i = 0; i < input_blob_names.size(); i++) {
-		delete inputTensors_host[i];
-	}
-    for (int i = 0; i < output_blob_names.size(); i++) {
-		delete outputTensors_host[i];
-	}
+    if (net!=nullptr){
+        net->releaseModel();
+        net->releaseSession(session);
+        for (int i = 0; i < input_blob_names.size(); i++) {
+            // delete inputTensors[i];
+            delete inputTensors_host[i];
+        }
+        for (int i = 0; i < output_blob_names.size(); i++) {
+            // delete outputTensors[i];
+            delete outputTensors_host[i];
+        }
+        inputTensors.clear();
+        inputTensors_host.clear();
+        outputTensors.clear();
+        outputTensors_host.clear();
+        input_blob_names.clear();
+        output_blob_names.clear();
+
+    }
 }
 

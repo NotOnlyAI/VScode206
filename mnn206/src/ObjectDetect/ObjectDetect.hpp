@@ -1,8 +1,8 @@
 //  Created by Linzaer on 2019/11/15.
 //  Copyright © 2019 Linzaer. All rights reserved.
 
-#ifndef FaceAlignment_LA1_hpp1
-#define FaceAlignment_LA1_hpp1
+#ifndef ObjectDetect1_hpp
+#define ObjectDetect1_hpp
 
 #pragma once
 
@@ -11,56 +11,49 @@
 #include "MNN/Tensor.hpp"
 #include "MNN/ImageProcess.hpp"
 
-#include "models206_typedef.h"
-#include <opencv2/opencv.hpp>
 #include <algorithm>
 #include <iostream>
 #include <string>
 #include <vector>
 #include <memory>
 #include <chrono>
+#include "models206_typedef.h"
+#include <opencv2/opencv.hpp>
 
 
 
-// flip_parts = ([1, 17], [2, 16], [3, 15], [4, 14], [5, 13], [6, 12], [7, 11], [8, 10],
-//     [18, 27], [19, 26], [20, 25], [21, 24], [22, 23],
-//     [32, 36], [33, 35],
-//     [37, 46], [38, 45], [39, 44], [40, 43], [41, 48], [42, 47],
-//     [49, 55], [50, 54], [51, 53], [62, 64], [61, 65], [68, 66], [59, 57], [60, 56])
 
-
-
-using namespace M2;
-
-
-
-class FaceAlignment {
+class ObjectDetect {
 public:
-    FaceAlignment();
+    ObjectDetect();
 
-    ~FaceAlignment();
+    ~ObjectDetect();
 
-    int Forward(const M2::ImgData_T &imgdata,M2::Box cropBox,M2::LandmarkInfo &landmarkinfo);
+    int ForwardBGR(const cv::Mat &image,M2::DetectResult &result);
 
     int init(int deviceTpye,int print_config);
-    
 
-    LandmarkInfo  landmark68;
+    int visImg(const M2::ImgData_T &imgdata,const M2::DetectResult &re);
 
+    M2::DetectResult  m_rectinfo;
     bool model_is_ok=false;
-
 
 private:
 
-    
-
     int decode(std::vector< MNN::Tensor*> &outputTensors_host);
 
+
+
+
+
     std::shared_ptr<MNN::Interpreter> net;
-    MNN::Session *session = nullptr;
-    MNN::CV::ImageProcess::Config imconfig;
     std::shared_ptr<MNN::CV::ImageProcess> pretreat;
+    MNN::CV::ImageProcess::Config imconfig;
+
+    MNN::Session *session = nullptr;
     MNN::Tensor::DimensionType dimType = MNN::Tensor::CAFFE;
+
+
 
     std::vector< MNN::Tensor*> outputTensors;
     std::vector< MNN::Tensor*> outputTensors_host;
@@ -77,8 +70,8 @@ private:
     int in_h;
     int image_h;
     int image_w;
-    
+    int m_print;
 
 };
 
-#endif /* FaceAlignment_hpp */
+#endif /* ObjectDetect_hpp */

@@ -37,11 +37,12 @@ $(wildcard src/FaceDetect/*.c)\
 $(wildcard src/LaneDetect/*.cpp)\
 $(wildcard src/LaneDetect/*.c)\
 $(wildcard src/FaceAlignment/*.cpp)\
-$(wildcard src/FaceAlignment/*.c)
+$(wildcard src/FaceAlignment/*.c)\
+$(wildcard src/ObjectDetect/*.cpp)\
+$(wildcard srcObjectDetect/*.c)
 # $(wildcard src/PicRecognize/*.cpp)\
 # $(wildcard src/PicRecognize/*.c)\
-# $(wildcard src/FaceDetectV2/*.cpp)\
-# $(wildcard src/FaceDetectV2/*.c)\
+
 
 # $(wildcard src/DataSrc/*.cpp)\
 # $(wildcard src/DataSrc/*.c)\

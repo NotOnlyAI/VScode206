@@ -33,7 +33,7 @@ public:
     ~LaneDetect();
 
     
-    int Forward(const M2::ImgData_T &imgdata,std::vector<lane_DECODE> &final_lane);
+    int ForwardBGR(const cv::Mat &image,std::vector<lane_DECODE> &final_lane);
     int init(int deviceTpye,int print_config);
 
 
