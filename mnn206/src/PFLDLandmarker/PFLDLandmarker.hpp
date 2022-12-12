@@ -1,8 +1,8 @@
 //  Created by Linzaer on 2019/11/15.
 //  Copyright © 2019 Linzaer. All rights reserved.
 
-#ifndef FaceAlignment_LA1_hpp1
-#define FaceAlignment_LA1_hpp1
+#ifndef PFLDLandmarker_LA_hpp1
+#define PFLDLandmarker_LA_hpp1
 
 #pragma once
 
@@ -34,15 +34,15 @@ using namespace M2;
 
 
 
-class FaceAlignment {
+class PFLDLandmarker {
 public:
-    FaceAlignment();
+    PFLDLandmarker();
 
-    ~FaceAlignment();
+    ~PFLDLandmarker();
 
-    int ForwardBGR(const cv::Mat &image,const M2::Object &face,M2::LandmarkInfo &landmarkinfo);
+    int Forward(const M2::ImgData_T &imgdata,M2::Box cropBox,M2::LandmarkInfo &landmarkinfo);
 
-    int init(int deviceTpye,int print_config,int modelType);
+    int init(int deviceTpye,int print_config);
     
 
     LandmarkInfo  landmark68;
@@ -77,9 +77,8 @@ private:
     int in_h;
     int image_h;
     int image_w;
-    int m_print;
-    int m_modelType;
+    
 
 };
 
-#endif /* FaceAlignment_hpp */
+#endif /* PFLDLandmarker_hpp */

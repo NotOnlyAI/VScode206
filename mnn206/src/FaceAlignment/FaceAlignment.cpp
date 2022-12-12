@@ -7,7 +7,7 @@
 #include "M2utils/image_utils_new.h"
 #include <opencv2/opencv.hpp>
 using namespace std;
-
+using namespace M2;
 
 
 
@@ -21,27 +21,19 @@ FaceAlignment::FaceAlignment() {
 }
 
 
-int FaceAlignment::init(int deviceTpye,int print_config){
+int FaceAlignment::init(int deviceTpye,int print_config,int modelType){
 
-    string mnn_path="./models206/FaceAlignment.mnn";
-    net = std::shared_ptr<MNN::Interpreter>(MNN::Interpreter::createFromFile(mnn_path.c_str()));
+    m_print=print_config;
+    m_modelType=modelType;
+    string mnnPath;
+
+
+    mnnPath="./models206/FaceAlignment.mnn" ;
     dimType = MNN::Tensor::TENSORFLOW;
     in_h=256;
     in_w=256;
-    MNN_PRINT("Interpreter build, model_path: %s, dimType:%d\n",mnn_path.c_str(),dimType);
-
-    MNN::ScheduleConfig config;
-    config.type  = (MNNForwardType)(deviceTpye);
-    // config.type=MNN_FORWARD_OPENCL;
-    // config.type=MNN_FORWARD_CPU;
-    // BackendConfig bnconfig;
-    // bnconfig.precision = BackendConfig::Precision_Low;
-    // config.backendConfig = &bnconfig; 
-    session = net->createSession(config);
-    MNN_PRINT("ScheduleConfig build, config.type: %d \n",config.type);
-
-
-    
+    input_blob_names={"input_1"};
+    output_blob_names={"Identity"};
     float mean[3]     = {127.5f, 127.5f, 127.5f};
     float normals[3] = {0.007843f, 0.007843f, 0.007843f};
     ::memcpy(imconfig.mean, mean, sizeof(mean));
@@ -50,33 +42,75 @@ int FaceAlignment::init(int deviceTpye,int print_config){
     imconfig.destFormat = MNN::CV::RGB;
     imconfig.filterType = MNN::CV::NEAREST;
     pretreat=std::shared_ptr<MNN::CV::ImageProcess>(MNN::CV::ImageProcess::create(imconfig));
-    MNN_PRINT("ImageProcess build, sourceFormat: %d, destFormat: %d \n",imconfig.sourceFormat,imconfig.destFormat);
 
+    if (modelType==0){ 
+        mnnPath="./models206/FaceAlignment.mnn";;
+        dimType = MNN::Tensor::TENSORFLOW;
+        in_h=256;
+        in_w=256;
+        input_blob_names={"input_1"};
+        output_blob_names={"Identity"};
+        float mean[3]     = {127.5f, 127.5f, 127.5f};
+        float normals[3] = {0.007843f, 0.007843f, 0.007843f};
+        ::memcpy(imconfig.mean, mean, sizeof(mean));
+        ::memcpy(imconfig.normal, normals, sizeof(normals));
+        imconfig.sourceFormat = MNN::CV::BGR;
+        imconfig.destFormat = MNN::CV::RGB;
+        imconfig.filterType = MNN::CV::NEAREST;
+        pretreat=std::shared_ptr<MNN::CV::ImageProcess>(MNN::CV::ImageProcess::create(imconfig));
+    }
 
+    if (modelType==1){ 
+        mnnPath="./models206/FaceAlignment_pfld.mnn";;
+        dimType = MNN::Tensor::CAFFE;
+        in_h=96;
+        in_w=96;
+        input_blob_names={"data"};
+        output_blob_names={"conv5_fwd"};
+        float mean[3]     = {123.0f,   123.0f,   123.0f};
+        float normals[3] = {0.01724f, 0.01724f, 0.01724f};
+        ::memcpy(imconfig.mean, mean, sizeof(mean));
+        ::memcpy(imconfig.normal, normals, sizeof(normals));
+        imconfig.sourceFormat = MNN::CV::BGR;
+        imconfig.destFormat = MNN::CV::RGB;
+        imconfig.filterType = MNN::CV::NEAREST;
+        pretreat=std::shared_ptr<MNN::CV::ImageProcess>(MNN::CV::ImageProcess::create(imconfig));
+    }
 
-    input_blob_names={ "input_1"};
+   
+
+   
+
+    net = std::shared_ptr<MNN::Interpreter>(MNN::Interpreter::createFromFile(mnnPath.c_str()));
+    MNN::ScheduleConfig config;
+    config.type=(MNNForwardType)(deviceTpye);
+    config.mode = MNN_GPU_TUNING_NORMAL | MNN_GPU_MEMORY_IMAGE;
+    MNN::BackendConfig backendConfig;
+    backendConfig.precision = MNN::BackendConfig::Precision_Normal;
+    backendConfig.memory    = MNN::BackendConfig::Memory_Normal;
+    backendConfig.power     = MNN::BackendConfig::Power_Normal;
+    config.backendConfig = &backendConfig;
+    session = net->createSession(config);
+    MNN_PRINT("Interpreter build, model_path: %s, dimType:%d\n",mnnPath.c_str(),dimType);
+
+  
     inputTensors.resize(input_blob_names.size());
     inputTensors_host.resize(input_blob_names.size());
     for (int i = 0; i < input_blob_names.size(); i++) {
 		inputTensors[i] = net->getSessionInput(session,input_blob_names[0].c_str());
 	}
-
     for (int i = 0; i < input_blob_names.size(); i++) {
 		inputTensors_host[i] = new MNN::Tensor(inputTensors[i], dimType);
 	}
-
-    output_blob_names={ "Identity",};
+ 
     outputTensors.resize(output_blob_names.size());
     outputTensors_host.resize(output_blob_names.size());
-
     for (int i = 0; i < output_blob_names.size(); i++) {
 		outputTensors[i] = net->getSessionOutput(session, output_blob_names[i].c_str());
 	}
-
     for (int i = 0; i < output_blob_names.size(); i++) {
 		outputTensors_host[i] = new MNN::Tensor(outputTensors[i], dimType);
 	}
-
 
     float memoryUsage = 0.0f;
     net->getSessionInfo(session, MNN::Interpreter::MEMORY, &memoryUsage);
@@ -88,116 +122,81 @@ int FaceAlignment::init(int deviceTpye,int print_config){
 
 
     for (int i = 0; i < input_blob_names.size(); i++) {
-        // MNN_PRINT("%s\n",input_blob_names[i]);
+        MNN_PRINT("%s\n",input_blob_names[i].c_str());
 		inputTensors_host[i]->printShape();
 	}
 
+
     for (int i = 0; i < output_blob_names.size(); i++) {
-        // MNN_PRINT("%s\n",output_blob_names[i]);
+        MNN_PRINT("%s\n",output_blob_names[i].c_str());
 		outputTensors_host[i]->printShape();
-	}
+	} 
+
+    return 0;
 
 
 }
 
 
-int FaceAlignment::Forward(const M2::ImgData_T &imgdata,M2::Box cropBox,M2::LandmarkInfo &landmarkinfo) {
+int FaceAlignment::ForwardBGR(const cv::Mat &image,const M2::Object &face,M2::LandmarkInfo &landmarkinfo) {
 
 
     auto start = chrono::steady_clock::now();
 
 
-    // cv::Mat image(cv::Size(imgdata.width, imgdata.height), CV_8UC3);
-	// image.data =imgdata.data;
-	// cv::imshow("in",image);
-	// cv::waitKey(0);
-
-    
-        
-    if (!imgdata.data) {
-        std::cout << "image is empty ,please check!" << std::endl;
-        return -1;
-    }
-
-
-
-
-    M2::ImgData_T crop_imagedata;
-    double newx1=max(cropBox.xmin-0.125*cropBox.width,1.0);
-    double newy1=max(cropBox.ymin-0.125*cropBox.height,1.0);
-//    double neww=min(1.25*rect.width,imagedata.width-newx1-1.0);
-//    double newh=min(1.25*rect.height,imagedata.height-newy1-1.0);
-    double newx2 = min(cropBox.xmin + 1.125 * cropBox.width, imgdata.width - 1.0);
-    double newy2 = min(cropBox.ymin + 1.125 * cropBox.height, imgdata.height - 1.0);
-
-
-    double dw=min(newx2-(cropBox.xmin+cropBox.width),cropBox.xmin-newx1);
-    double dh=min(newy2-(cropBox.ymin+cropBox.height),cropBox.ymin-newy1);
+    double newx1=max(face.rect.x-0.125*face.rect.width,1.0);
+    double newy1=max(face.rect.y-0.125*face.rect.height,1.0);
+    double newx2 = min(face.rect.x + 1.125 * face.rect.width, image.cols - 1.0);
+    double newy2 = min(face.rect.y + 1.125 * face.rect.height, image.rows - 1.0);
+    double dw=min(newx2-(face.rect.x+face.rect.width),face.rect.x-newx1);
+    double dh=min(newy2-(face.rect.y+face.rect.height),face.rect.y-newy1);
     double dd=min(dw,dh);
-    M2::Box rect_new;
-    rect_new.xmin=int(cropBox.xmin-dd);
-    rect_new.ymin=int(cropBox.ymin-dd);
-    rect_new.width=int(cropBox.width+2*dd);
-    rect_new.height=int(cropBox.height+2*dd);
 
-    cout<<rect_new.xmin<<","<<rect_new.ymin<<","<<rect_new.width<<","<<rect_new.height<<endl;
+    cv::Rect rect_new;
+    rect_new.x=int(face.rect.x-dd);
+    rect_new.y=int(face.rect.y-dd);
+    rect_new.width=int(face.rect.width+2*dd);
+    rect_new.height=int(face.rect.height+2*dd);
 
-    crop_imagedata.data=(unsigned char*)M2_crop_databuff;
-    Image_crop_v2(imgdata,crop_imagedata,rect_new);
-
-
-    // cv::Mat crop_image(cv::Size(crop_imagedata.width, crop_imagedata.height), CV_8UC3);
-	// crop_image.data =crop_imagedata.data;
-	// cv::imshow("crop",crop_image);
-	// cv::waitKey(0);
-
-    image_h = crop_imagedata.height;
-    image_w = crop_imagedata.width;
-
-    MNN::CV::ImageFormat sourceFormat=(MNN::CV::ImageFormat)imgdata.dataFormat;
-    if(imconfig.sourceFormat!=sourceFormat)
-    {
-        imconfig.sourceFormat = sourceFormat;
-        imconfig.destFormat = MNN::CV::RGB;
-        pretreat=std::shared_ptr<MNN::CV::ImageProcess>(MNN::CV::ImageProcess::create(imconfig));
-    }
+    image_h = rect_new.height;
+    image_w = rect_new.width;
 
 
+    cv::Mat crop_image=image(rect_new);
+    // cv::imshow("crop",crop_image);
+    // cv::waitKey(0);
 
-    MNN::CV::Matrix trans;
-    trans.setScale((float)(crop_imagedata.width) / (float)(in_w), (float)(crop_imagedata.height) / (float)(in_h));
-    pretreat->setMatrix(trans);
-    pretreat->convert((uint8_t *)crop_imagedata.data, crop_imagedata.width,crop_imagedata.height,0,inputTensors_host[0]);
-
-
-    // MNN::CV::Matrix trans;
-    // trans.setScale((float)(imgdata.width) / (float)(in_w), (float)(imgdata.height) / (float)(in_h));
-    // pretreat->setMatrix(trans);
-    // pretreat->convert((uint8_t *)imgdata.data, imgdata.width,imgdata.height,0,inputTensors_host[0]);
+    cv::Mat resize_img;
+    cv::resize(crop_image,resize_img,cv::Size(in_w,in_h));
+    // cv::imshow("resize",resize_img);
+    // cv::waitKey(0);
 
 
+    pretreat->convert((uint8_t *)resize_img.data, in_w,in_h,0,inputTensors_host[0]);
     inputTensors[0]->copyFromHostTensor(inputTensors_host[0]);
-
-
     net->runSession(session);
-
     for (int i = 0; i < output_blob_names.size(); i++) {
 		outputTensors[i]->copyToHostTensor(outputTensors_host[i]);
 	}
+    if(m_print>=1){
+        chrono::duration<double> elapsed2 = chrono::steady_clock::now() - start;
+        cout << "net time:" << elapsed2.count() << " s" << endl;
+        outputTensors_host[0]->printShape();
+        for (int i = 0; i < 20; ++i) {
+            MNN_PRINT("copy %f\n", outputTensors_host[0]->host<float>()[i]);
+        }
+    }
 
 
-    
-    // outputTensors_host[0]->printShape();
-    // for (int i = 0; i < 20; ++i) {
-    //     MNN_PRINT("copy %f, %f\n", outputTensors[0]->host<float>()[i], outputTensors_host[0]->host<float>()[i]);
-    // }
-    
     decode(outputTensors_host);
 
-    for (int i = 0; i < 68; ++i) {
-        landmarkinfo.landmark[i].x= landmark68.landmark[i].x+rect_new.xmin;
-        landmarkinfo.landmark[i].y= landmark68.landmark[i].y+rect_new.ymin;
-        MNN_PRINT("landmarkinfo %f, %f\n", landmarkinfo.landmark[i].x, landmarkinfo.landmark[i].y);
+    if(m_print>=2){
+        landmarkinfo.numPoints= landmark68.numPoints;
+        for (int i = 0; i < landmarkinfo.numPoints; ++i) {
+            landmarkinfo.landmark[i].x= landmark68.landmark[i].x+rect_new.x;
+            landmarkinfo.landmark[i].y= landmark68.landmark[i].y+rect_new.y;
+            MNN_PRINT("i=%d  %f, %f\n", i,landmarkinfo.landmark[i].x, landmarkinfo.landmark[i].y);
+        }
     }
 
 
@@ -217,13 +216,31 @@ int FaceAlignment::decode(std::vector< MNN::Tensor*> &outputTensors_host)
     // for (int i = 0; i < 10; ++i) {
     //     MNN_PRINT("func %f, %f\n", outputTensors_host[0]->host<float>()[2*i+0], outputTensors_host[0]->host<float>()[2*i+0]);
     // }
-
-    for (int i = 0; i < 68; ++i) {
-        landmark68.landmark[i].x= (outputTensors_host[0]->host<float>()[2*i+0]+1)*0.5*image_w;
-        landmark68.landmark[i].y= (outputTensors_host[0]->host<float>()[2*i+1]+1)*0.5*image_h;
-    //     MNN_PRINT("func %f, %f\n", outputTensors_host[0]->host<float>()[2*i+0], outputTensors_host[0]->host<float>()[2*i+0]);
+    if (m_modelType==0)
+    {
+        for (int i = 0; i < 68; ++i) {
+            landmark68.landmark[i].x= (outputTensors_host[0]->host<float>()[2*i+0]+1)*0.5*image_w;
+            landmark68.landmark[i].y= (outputTensors_host[0]->host<float>()[2*i+1]+1)*0.5*image_h;
+            //     MNN_PRINT("func %f, %f\n", outputTensors_host[0]->host<float>()[2*i+0], outputTensors_host[0]->host<float>()[2*i+0]);
+        }
+        landmark68.numPoints=68;
     }
-    return 1;
+
+    if (m_modelType==1)
+    {
+        float scale_x = static_cast<float>(image_w) / in_w;
+        float scale_y = static_cast<float>(image_h) / in_h;
+        for (int i = 0; i < 98; ++i) {
+            landmark68.landmark[i].x= (outputTensors_host[0]->host<float>()[2*i+0])*scale_x;
+            landmark68.landmark[i].y= (outputTensors_host[0]->host<float>()[2*i+1])*scale_y;
+                // MNN_PRINT("func %f, %f\n", outputTensors_host[0]->host<float>()[2*i+0], outputTensors_host[0]->host<float>()[2*i+0]);
+        }
+        landmark68.numPoints=98;
+    }
+
+
+
+    return 0;
 
 }
 

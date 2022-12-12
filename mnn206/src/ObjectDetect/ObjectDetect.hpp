@@ -29,18 +29,19 @@ public:
 
     ~ObjectDetect();
 
-    int ForwardBGR(const cv::Mat &image,M2::DetectResult &result);
+    int ForwardBGR(const cv::Mat &image,M2::ObjectInfo &objectinfo);
 
-    int init(int deviceTpye,int print_config);
+    int init(int deviceTpye,int print_config,int modelType);
 
-    int visImg(const M2::ImgData_T &imgdata,const M2::DetectResult &re);
+    // int visImg(const M2::ImgData_T &imgdata,const M2::DetectResult &re);
 
-    M2::DetectResult  m_rectinfo;
+    // M2::DetectResult  m_rectinfo;
     bool model_is_ok=false;
 
 private:
 
     int decode(std::vector< MNN::Tensor*> &outputTensors_host);
+
 
 
 

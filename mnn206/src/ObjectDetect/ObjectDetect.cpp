@@ -15,25 +15,19 @@ ObjectDetect::ObjectDetect() {
 }
 
 
-int ObjectDetect::init(int deviceTpye,int print_config)
+int ObjectDetect::init(int deviceTpye,int print_config,int modelType)
 {
     //
     m_print=print_config;
+    string mnnPath;
 
-    string mnn_path2="./models206/yolox_s_480_480_extract.mnn";
-    net = std::shared_ptr<MNN::Interpreter>(MNN::Interpreter::createFromFile(mnn_path2.c_str()));
+
+    mnnPath="./models206/yolox_s_480_480_relu_extract.mnn" ;
     dimType = MNN::Tensor::CAFFE;
     in_h=480;
     in_w=480;
-    MNN_PRINT("Interpreter1 build, model_path: %s, dimType:%d\n",mnn_path2.c_str(),dimType);
-    MNN::ScheduleConfig config;
-    config.type=(MNNForwardType)(deviceTpye);
-    config.mode = MNN_GPU_TUNING_NORMAL | MNN_GPU_MEMORY_IMAGE;
-    MNN::BackendConfig backendConfig;
-    backendConfig.precision = MNN::BackendConfig::Precision_Normal;
-    config.backendConfig = &backendConfig;
-    session = net->createSession(config);
-
+    input_blob_names={"input0"};
+    output_blob_names={"/head/Concat_output_0","/head/Concat_1_output_0","/head/Concat_2_output_0"};
     float mean[3]     = {0.0f, 0.0f, 0.0f};
     float normals[3] = {1.0f, 1.0f, 1.0f};
     ::memcpy(imconfig.mean, mean, sizeof(mean));
@@ -43,7 +37,35 @@ int ObjectDetect::init(int deviceTpye,int print_config)
     pretreat=std::shared_ptr<MNN::CV::ImageProcess>(MNN::CV::ImageProcess::create(imconfig));
 
 
-    input_blob_names={"input0"};
+    if (modelType==0){ 
+        mnnPath="./models206/yolox_s_480_480_relu_extract.mnn" ;
+        dimType = MNN::Tensor::CAFFE;
+        in_h=480;
+        in_w=480;
+        input_blob_names={"input0"};
+        output_blob_names={"/head/Concat_output_0","/head/Concat_1_output_0","/head/Concat_2_output_0"};
+        float mean[3]     = {0.0f, 0.0f, 0.0f};
+        float normals[3] = {1.0f, 1.0f, 1.0f};
+        ::memcpy(imconfig.mean, mean, sizeof(mean));
+        ::memcpy(imconfig.normal, normals, sizeof(normals));
+        imconfig.sourceFormat = MNN::CV::BGR;
+        imconfig.destFormat = MNN::CV::BGR;
+        pretreat=std::shared_ptr<MNN::CV::ImageProcess>(MNN::CV::ImageProcess::create(imconfig));
+    }
+
+    net = std::shared_ptr<MNN::Interpreter>(MNN::Interpreter::createFromFile(mnnPath.c_str()));
+    MNN::ScheduleConfig config;
+    config.type=(MNNForwardType)(deviceTpye);
+    config.mode = MNN_GPU_TUNING_NORMAL | MNN_GPU_MEMORY_IMAGE;
+    MNN::BackendConfig backendConfig;
+    backendConfig.precision = MNN::BackendConfig::Precision_Normal;
+    backendConfig.memory    = MNN::BackendConfig::Memory_Normal;
+    backendConfig.power     = MNN::BackendConfig::Power_Normal;
+    config.backendConfig = &backendConfig;
+    session = net->createSession(config);
+    MNN_PRINT("Interpreter build, model_path: %s, dimType:%d\n",mnnPath.c_str(),dimType);
+
+  
     inputTensors.resize(input_blob_names.size());
     inputTensors_host.resize(input_blob_names.size());
     for (int i = 0; i < input_blob_names.size(); i++) {
@@ -54,7 +76,7 @@ int ObjectDetect::init(int deviceTpye,int print_config)
 	}
 // MNN::Tensor::TENSORFLOW
 
-    output_blob_names={"798","824","850"};
+    
     outputTensors.resize(output_blob_names.size());
     outputTensors_host.resize(output_blob_names.size());
     for (int i = 0; i < output_blob_names.size(); i++) {
@@ -84,12 +106,11 @@ int ObjectDetect::init(int deviceTpye,int print_config)
 		outputTensors_host[i]->printShape();
 	} 
 
-
     return 0;
 }
 
 
-int ObjectDetect::ForwardBGR(const cv::Mat &image,M2::DetectResult &result) {
+int ObjectDetect::ForwardBGR(const cv::Mat &image,M2::ObjectInfo &objectinfo) {
 
 
     //	 cv::imshow("in",image);
@@ -115,6 +136,7 @@ int ObjectDetect::ForwardBGR(const cv::Mat &image,M2::DetectResult &result) {
             MNN_PRINT("copy %f\n", outputTensors_host[0]->host<float>()[i]);
         }
     }
+
 
 
     // decode(outputTensors_host);
@@ -191,210 +213,178 @@ int ObjectDetect::decode(std::vector< MNN::Tensor*> &outputTensors_host)
 	// 	outputTensors_host[i]->printShape();
 	// }
 
-    int start=0;
-    int end=4;
-    int grid_hs[4];
-    int grid_ws[4];
-    int BboxNumEachGrid[4]={3,2,2,3};
-    float BoxSteps[4]={8,16,32,64};
-    float BoxMinSizes[4][3] = {{10, 16, 24}, {32, 48,0}, {64, 96,0}, {128, 192, 256}};
-    grid_hs[0]=40;grid_hs[1]=20;grid_hs[2]=10;grid_hs[3]=5;
-    grid_ws[0]=30;grid_ws[1]=15;grid_ws[2]=8;grid_ws[3]=4;
+//     int start=0;
+//     int end=4;
+//     int grid_hs[4];
+//     int grid_ws[4];
+//     int BboxNumEachGrid[4]={3,2,2,3};
+//     float BoxSteps[4]={8,16,32,64};
+//     float BoxMinSizes[4][3] = {{10, 16, 24}, {32, 48,0}, {64, 96,0}, {128, 192, 256}};
+//     grid_hs[0]=40;grid_hs[1]=20;grid_hs[2]=10;grid_hs[3]=5;
+//     grid_ws[0]=30;grid_ws[1]=15;grid_ws[2]=8;grid_ws[3]=4;
 
 
 
-    float f32Score0;
-    float f32Score1;
-    float f32Score;
-    float f32X;
-    float f32Y;
-    float f32Xmin;
-    float f32Ymin;
-    float f32Xmax;
-    float f32Ymax;
-    float f32Width;
-    float f32Height;
-    int N=0;
-    int BboxNum=0;
-    for(int i = start; i < end; i++)
-    {
-        uint32_t u32Offset=0;
-        uint32_t u32OffsetScore=0;
+//     float f32Score0;
+//     float f32Score1;
+//     float f32Score;
+//     float f32X;
+//     float f32Y;
+//     float f32Xmin;
+//     float f32Ymin;
+//     float f32Xmax;
+//     float f32Ymax;
+//     float f32Width;
+//     float f32Height;
+//     int N=0;
+//     int BboxNum=0;
+//     for(int i = start; i < end; i++)
+//     {
+//         uint32_t u32Offset=0;
+//         uint32_t u32OffsetScore=0;
 
 
-        int  grid_h = grid_hs[i];
-        int  grid_w = grid_ws[i];
-        int  grid_c_bbox =4;
+//         int  grid_h = grid_hs[i];
+//         int  grid_w = grid_ws[i];
+//         int  grid_c_bbox =4;
 
-        for(int j = 0; j < grid_h*grid_w; j++)
-        {
+//         for(int j = 0; j < grid_h*grid_w; j++)
+//         {
 
 
-            for(int k = 0; k < BboxNumEachGrid[i]; k++)
-            {
+//             for(int k = 0; k < BboxNumEachGrid[i]; k++)
+//             {
 
 
                
-                u32OffsetScore = (j * BboxNumEachGrid[i] + k) * 2;
-                SVP_NNIE_SoftMax(&(outputTensors_host[i]->host<float>()[u32OffsetScore]), 2);
-                f32Score0=outputTensors_host[i]->host<float>()[u32OffsetScore];
-                f32Score1=outputTensors_host[i]->host<float>()[u32OffsetScore+1];
+//                 u32OffsetScore = (j * BboxNumEachGrid[i] + k) * 2;
+//                 SVP_NNIE_SoftMax(&(outputTensors_host[i]->host<float>()[u32OffsetScore]), 2);
+//                 f32Score0=outputTensors_host[i]->host<float>()[u32OffsetScore];
+//                 f32Score1=outputTensors_host[i]->host<float>()[u32OffsetScore+1];
                 
                 
-                // u32Offset = (j * BboxNumEachGrid[i] + k) * 4;
-                // f32X = outputTensors_host[i+4]->host<float>()[u32Offset + 0];
-                // f32Y = outputTensors_host[i+4]->host<float>()[u32Offset + 1];
-                // f32Width = outputTensors_host[i+4]->host<float>()[u32Offset + 2];
-                // f32Height = outputTensors_host[i+4]->host<float>()[u32Offset + 3];
+//                 // u32Offset = (j * BboxNumEachGrid[i] + k) * 4;
+//                 // f32X = outputTensors_host[i+4]->host<float>()[u32Offset + 0];
+//                 // f32Y = outputTensors_host[i+4]->host<float>()[u32Offset + 1];
+//                 // f32Width = outputTensors_host[i+4]->host<float>()[u32Offset + 2];
+//                 // f32Height = outputTensors_host[i+4]->host<float>()[u32Offset + 3];
 
                 
 
-                // cout<<N<<":"<<f32X<<","<<f32Y <<","<<f32Width<<","<<f32Height<<","<<f32Score1<<endl;
+//                 // cout<<N<<":"<<f32X<<","<<f32Y <<","<<f32Width<<","<<f32Height<<","<<f32Score1<<endl;
 
-                if(f32Score1>0.5)
-                {
-                    uint32_t x = j % grid_w;
-                    uint32_t y = j / grid_w;
-                    float dense_cx = (x+0.5) * BoxSteps[i] / in_w;
-                    float dense_cy = (y+0.5) * BoxSteps[i] / in_h;
-                    float s_kx = BoxMinSizes[i][k] / in_w;
-                    float s_ky = BoxMinSizes[i][k] / in_h;
+//                 if(f32Score1>0.5)
+//                 {
+//                     uint32_t x = j % grid_w;
+//                     uint32_t y = j / grid_w;
+//                     float dense_cx = (x+0.5) * BoxSteps[i] / in_w;
+//                     float dense_cy = (y+0.5) * BoxSteps[i] / in_h;
+//                     float s_kx = BoxMinSizes[i][k] / in_w;
+//                     float s_ky = BoxMinSizes[i][k] / in_h;
 
-                    float max_val=0.999;
-                    float min_val=0.001;
+//                     float max_val=0.999;
+//                     float min_val=0.001;
 
 
-                    u32Offset = (j * BboxNumEachGrid[i] + k) * 4;
+//                     u32Offset = (j * BboxNumEachGrid[i] + k) * 4;
 
-                    f32X = outputTensors_host[i+4]->host<float>()[u32Offset + 0]*0.1*s_kx+dense_cx;
-                    f32Y = outputTensors_host[i+4]->host<float>()[u32Offset + 1]*0.1*s_ky+dense_cy;
-                    f32Width = exp(outputTensors_host[i+4]->host<float>()[u32Offset + 2]*0.2)*s_kx;
-                    f32Height = exp(outputTensors_host[i+4]->host<float>()[u32Offset + 3]*0.2)*s_ky;
+//                     f32X = outputTensors_host[i+4]->host<float>()[u32Offset + 0]*0.1*s_kx+dense_cx;
+//                     f32Y = outputTensors_host[i+4]->host<float>()[u32Offset + 1]*0.1*s_ky+dense_cy;
+//                     f32Width = exp(outputTensors_host[i+4]->host<float>()[u32Offset + 2]*0.2)*s_kx;
+//                     f32Height = exp(outputTensors_host[i+4]->host<float>()[u32Offset + 3]*0.2)*s_ky;
 
-                    // cout<<u32Offset<<" score:"<<f32Score1<<","<<f32X<<","<<f32Y<<","<<f32Width<<","<<f32Height<<","<<endl;
+//                     // cout<<u32Offset<<" score:"<<f32Score1<<","<<f32X<<","<<f32Y<<","<<f32Width<<","<<f32Height<<","<<endl;
 
-                    f32Xmin = min(float(f32X-0.5*f32Width),max_val);
-                    f32Ymin = min(float(f32Y-0.5*f32Height),max_val);
-                    f32Xmax  =min(float(f32X+0.5*f32Width),max_val);
-                    f32Ymax = min(float(f32Y+0.5*f32Height),max_val);
-                    f32Xmin = max(f32Xmin,min_val);
-                    f32Ymin = max(f32Ymin,min_val);
-                    f32Xmax = max(f32Xmax,min_val);
-                    f32Ymax = max(f32Ymax,min_val);
-                    box[N][0] = f32Xmin;
-                    box[N][1] = f32Ymin;
-                    box[N][2] = max(f32Xmax-f32Xmin,min_val);
-                    box[N][3] = max(f32Ymax-f32Ymin,min_val);
-                    box[N][4] = f32Score1;
-                    vec_boxs.push_back(box[N]);
+//                     f32Xmin = min(float(f32X-0.5*f32Width),max_val);
+//                     f32Ymin = min(float(f32Y-0.5*f32Height),max_val);
+//                     f32Xmax  =min(float(f32X+0.5*f32Width),max_val);
+//                     f32Ymax = min(float(f32Y+0.5*f32Height),max_val);
+//                     f32Xmin = max(f32Xmin,min_val);
+//                     f32Ymin = max(f32Ymin,min_val);
+//                     f32Xmax = max(f32Xmax,min_val);
+//                     f32Ymax = max(f32Ymax,min_val);
+//                     box[N][0] = f32Xmin;
+//                     box[N][1] = f32Ymin;
+//                     box[N][2] = max(f32Xmax-f32Xmin,min_val);
+//                     box[N][3] = max(f32Ymax-f32Ymin,min_val);
+//                     box[N][4] = f32Score1;
+//                     vec_boxs.push_back(box[N]);
 
-                    // cout<<u32OffsetScore<<" score:"<<f32Score1<<","<<f32Xmin<<","<<f32Ymin<<","<<f32Xmax<<","<<f32Ymax<<","<<endl;
-                    BboxNum++;
-                }
-                N++;
-            }
-        }
-    }
-    // cout<<"BboxNum:"<<BboxNum<<endl;
-    nms_boxs = nms(vec_boxs, 0.5,0.5,nms_indexes);
-    // cout<<"nms_boxs:"<<nms_boxs.size()<<endl;
+//                     // cout<<u32OffsetScore<<" score:"<<f32Score1<<","<<f32Xmin<<","<<f32Ymin<<","<<f32Xmax<<","<<f32Ymax<<","<<endl;
+//                     BboxNum++;
+//                 }
+//                 N++;
+//             }
+//         }
+//     }
+//     // cout<<"BboxNum:"<<BboxNum<<endl;
+//     nms_boxs = nms(vec_boxs, 0.5,0.5,nms_indexes);
+//     // cout<<"nms_boxs:"<<nms_boxs.size()<<endl;
     
-    m_rectinfo.nNum=0;
-    // landmarkinfo.nFaceNum=0;
+//     m_rectinfo.nNum=0;
+//     // landmarkinfo.nFaceNum=0;
 
-    for (int j = 0; j < int(nms_boxs.size()); j++)
-    {
-        M2::Box rect;
-        M2::Label label_;
-        rect.xmin=nms_boxs.at(j)[0]*image_w;
-        rect.ymin=nms_boxs.at(j)[1]*image_h;
-        rect.width=nms_boxs.at(j)[2]*image_w;
-        rect.height=nms_boxs.at(j)[3]*image_h;
-        label_.cls=1;
-        label_.score=nms_boxs.at(j)[4];
+//     for (int j = 0; j < int(nms_boxs.size()); j++)
+//     {
+//         M2::Box rect;
+//         M2::Label label_;
+//         rect.xmin=nms_boxs.at(j)[0]*image_w;
+//         rect.ymin=nms_boxs.at(j)[1]*image_h;
+//         rect.width=nms_boxs.at(j)[2]*image_w;
+//         rect.height=nms_boxs.at(j)[3]*image_h;
+//         label_.cls=1;
+//         label_.score=nms_boxs.at(j)[4];
 
-        m_rectinfo.boxes[j] = rect;
-        m_rectinfo.labels[j] = label_;
+//         m_rectinfo.boxes[j] = rect;
+//         m_rectinfo.labels[j] = label_;
 
         
-        // STRU_Landmark_T landmark_t;
-        // landmark_t.point[0].x=nms_landmarks.at(j)[0]*float(origin_image_width);
-        // landmark_t.point[0].y=nms_landmarks.at(j)[1]*float(origin_image_height);
-        // landmark_t.point[1].x=nms_landmarks.at(j)[2]*origin_image_width;
-        // landmark_t.point[1].y=nms_landmarks.at(j)[3]*origin_image_height;
-        // landmark_t.point[2].x=nms_landmarks.at(j)[4]*origin_image_width;
-        // landmark_t.point[2].y=nms_landmarks.at(j)[5]*origin_image_height;
-        // landmark_t.point[3].x=nms_landmarks.at(j)[6]*origin_image_width;
-        // landmark_t.point[3].y=nms_landmarks.at(j)[7]*origin_image_height;
-        // landmark_t.point[4].x=nms_landmarks.at(j)[8]*origin_image_width;
-        // landmark_t.point[4].y=nms_landmarks.at(j)[9]*origin_image_height;
-        // landmark_t.score=1;
-        // landmarkinfo.landmark[j]=landmark_t;
-//        cout<<j<<":"<<landmarkinfo.landmark[j].point[0].x<<endl;
+//         // STRU_Landmark_T landmark_t;
+//         // landmark_t.point[0].x=nms_landmarks.at(j)[0]*float(origin_image_width);
+//         // landmark_t.point[0].y=nms_landmarks.at(j)[1]*float(origin_image_height);
+//         // landmark_t.point[1].x=nms_landmarks.at(j)[2]*origin_image_width;
+//         // landmark_t.point[1].y=nms_landmarks.at(j)[3]*origin_image_height;
+//         // landmark_t.point[2].x=nms_landmarks.at(j)[4]*origin_image_width;
+//         // landmark_t.point[2].y=nms_landmarks.at(j)[5]*origin_image_height;
+//         // landmark_t.point[3].x=nms_landmarks.at(j)[6]*origin_image_width;
+//         // landmark_t.point[3].y=nms_landmarks.at(j)[7]*origin_image_height;
+//         // landmark_t.point[4].x=nms_landmarks.at(j)[8]*origin_image_width;
+//         // landmark_t.point[4].y=nms_landmarks.at(j)[9]*origin_image_height;
+//         // landmark_t.score=1;
+//         // landmarkinfo.landmark[j]=landmark_t;
+// //        cout<<j<<":"<<landmarkinfo.landmark[j].point[0].x<<endl;
 
-    }
+//     }
 
-    m_rectinfo.nNum=m_rectinfo.nNum+int(nms_boxs.size());
+//     m_rectinfo.nNum=m_rectinfo.nNum+int(nms_boxs.size());
     // landmarkinfo.nFaceNum=landmarkinfo.nFaceNum+int(nms_boxs.size());
     // cout<<"rectinfo.nFaceNum:"<<rectinfo.nFaceNum<<endl;
-    return 1;
-
-}
-
-
-
-int ObjectDetect::visImg(const M2::ImgData_T &imagedata,const M2::DetectResult &rectinfo)
-{
-    
-
-    cv::Mat ori_image(cv::Size(imagedata.width, imagedata.height), CV_8UC3);
-	ori_image.data =imagedata.data;
-
-    cv::Mat image=ori_image.clone();
-    
-
-    for(int i=0;i<rectinfo.nNum;i++)
-    {
-        std::string text =std::to_string(rectinfo.labels[i].score);
-        int font_face = cv::FONT_HERSHEY_COMPLEX;
-        double font_scale = 1;
-        int thickness = 1;
-    //    int baseline;
-    //    cv::Size text_size = cv::getTextSize(text, font_face, font_scale, thickness, &baseline);
-        // 将文本框居中绘制
-        cv::Point origin;
-        origin.x = rectinfo.boxes[i].xmin+20;
-        origin.y = rectinfo.boxes[i].ymin+20;
-        cv::putText(image, text, origin, font_face, font_scale, cv::Scalar(0, 255, 255), thickness, 8, 0);
-
-        cv::Rect r = cv::Rect(rectinfo.boxes[i].xmin, rectinfo.boxes[i].ymin, rectinfo.boxes[i].width, rectinfo.boxes[i].height);
-        cv::rectangle(image, r, cv::Scalar(255, 0, 0), 1, 8, 0);
-    }
-    cv::imshow("1",image);
-    cv::waitKey(0);
     return 0;
+
 }
+
+
 
 
 ObjectDetect::~ObjectDetect() {
     
-    // if (net1!=nullptr){
-    //     net1->releaseModel();
-    //     net1->releaseSession(session);
-    //     for (int i = 0; i < input_blob_names1.size(); i++) {
-    //         delete inputTensors1[i];
-    //         delete inputTensors_host1[i];
-    //     }
-    //     for (int i = 0; i < output_blob_names1.size(); i++) {
-    //         delete outputTensors1[i];
-    //         delete outputTensors_host1[i];
-    //     }
-    //     inputTensors1.clear();
-    //     inputTensors_host1.clear();
-    //     outputTensors1.clear();
-    //     outputTensors_host1.clear();
-    //     input_blob_names1.clear();
-    //     output_blob_names1.clear();
-    // }
+    if (net!=nullptr){
+        net->releaseModel();
+        net->releaseSession(session);
+        for (int i = 0; i < input_blob_names.size(); i++) {
+            delete inputTensors[i];
+            delete inputTensors_host[i];
+        }
+        for (int i = 0; i < output_blob_names.size(); i++) {
+            delete outputTensors[i];
+            delete outputTensors_host[i];
+        }
+        inputTensors.clear();
+        inputTensors_host.clear();
+        outputTensors.clear();
+        outputTensors_host.clear();
+        input_blob_names.clear();
+        output_blob_names.clear();
+    }
 }
 

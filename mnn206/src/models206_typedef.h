@@ -51,29 +51,18 @@ typedef struct ImgData_T
 
 
 
-
-typedef struct Box
-{
-	int xmin;
-	int ymin;
-	int width;
-	int height;
-}STRU_Rect_T;
+struct Object {
+  cv::Rect_<float> rect;
+  int label;
+  float prob;
+};
 
 
-typedef struct Label
-{
-	int cls;
-	float score;
-}Label_s;
+struct ObjectInfo{
+	int ObjectNum;
+	Object objects[MAXOBJECTCOUNT];
+};
 
-
-typedef struct DetectResult
-{
-	int nNum;
-	Box boxes[MAXOBJECTCOUNT];
-	Label labels[MAXOBJECTCOUNT];
-}STRU_RectInfo_T;
 
 
 
@@ -100,7 +89,8 @@ typedef struct Point2f
 
 typedef struct LandmarkInfo
 {
-	Point2f landmark[68];
+	Point2f landmark[98];
+    int numPoints;
 }LandmarkInfo_T;
 
 
@@ -108,6 +98,7 @@ typedef struct LandmarkInfo
 
 } //#namespace
 #endif
+
 
 
 
