@@ -67,7 +67,7 @@ int M2_FaceDetect_ForwardBGR(const cv::Mat &image,M2::ObjectInfo &objectinfo,int
     myFaceDetect.ForwardBGR(image,objectinfo,max_or_mid);
 
 
-    if(print_config>=0){TFLITE_LOG(tflite::TFLITE_LOG_INFO, "M2_FaceDetect End! ");}
+    if(print_config>=0){TFLITE_LOG(tflite::TFLITE_LOG_INFO, "M2_FaceDetect End!\n");}
     return 0;
 }
 
@@ -108,7 +108,7 @@ int M2_LaneDetect_ForwardBGR(const cv::Mat &image,std::vector<M2::lane_DECODE> &
    #endif
 
 
-   if(print_config>=0){TFLITE_LOG(tflite::TFLITE_LOG_INFO, "M2_LaneDetect End! ");}
+   if(print_config>=0){TFLITE_LOG(tflite::TFLITE_LOG_INFO, "M2_LaneDetect End!\n");}
 
 
 }
@@ -148,7 +148,7 @@ int M2_FaceAlignment_ForwardBGR(const cv::Mat &image,const M2::Object &face,M2::
 
    myFaceAlignment.ForwardBGR(image,face,landmarkinfo);
 
-   if(print_config>=0){TFLITE_LOG(tflite::TFLITE_LOG_INFO, "M2_FaceAlignment End! ");}
+   if(print_config>=0){TFLITE_LOG(tflite::TFLITE_LOG_INFO, "M2_FaceAlignment End!\n");}
 
 }
 
@@ -187,7 +187,7 @@ int M2_ObjectDetect_ForwardBGR(const cv::Mat &image,M2::ObjectInfo &objectinfo)
 
    myObjectDetect.ForwardBGR(image,objectinfo);
 
-   if(print_config>=0){TFLITE_LOG(tflite::TFLITE_LOG_INFO, "M2_ObjectDetect End! ");}
+   if(print_config>=0){TFLITE_LOG(tflite::TFLITE_LOG_INFO, "M2_ObjectDetect End!\n");}
 
 }
 

@@ -72,7 +72,6 @@ private:
     int image_h;
     int image_w;
     int m_print;
-    int m_modelType;
 
 };
 

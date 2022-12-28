@@ -5,10 +5,9 @@
 
 #include "ObjectDetect.hpp"
 #include <opencv2/opencv.hpp>
-#include "M2utils/nms.h"
-#include "M2utils/process.h"
+#include "models206_typedef.h"
 using namespace std;
-
+using namespace M2;
 
 static inline float intersection_area(const Object &a, const Object &b) {
   cv::Rect_<float> inter = a.rect & b.rect;
@@ -102,7 +101,6 @@ int ObjectDetect::init(int deviceTpye,int print_config,int modelType)
 {
     //
     m_print=print_config;
-    m_modelType=modelType;
     string mnnPath;
 
 
@@ -145,22 +143,6 @@ int ObjectDetect::init(int deviceTpye,int print_config,int modelType)
         in_w=640;
         input_blob_names={"images"};
         output_blob_names={"/head/Concat_output_0","/head/Concat_1_output_0","/head/Concat_2_output_0"};
-        float mean[3]     = {0.0f, 0.0f, 0.0f};
-        float normals[3] = {1.0f, 1.0f, 1.0f};
-        ::memcpy(imconfig.mean, mean, sizeof(mean));
-        ::memcpy(imconfig.normal, normals, sizeof(normals));
-        imconfig.sourceFormat = MNN::CV::BGR;
-        imconfig.destFormat = MNN::CV::BGR;
-        pretreat=std::shared_ptr<MNN::CV::ImageProcess>(MNN::CV::ImageProcess::create(imconfig));
-    }
-
-    if (modelType==2){ 
-        mnnPath="./models206/rtmdet_s.mnn" ;
-        dimType = MNN::Tensor::CAFFE;
-        in_h=480;
-        in_w=480;
-        input_blob_names={"input_0"};
-        output_blob_names={"output_0","860","880","851","871","891"};
         float mean[3]     = {0.0f, 0.0f, 0.0f};
         float normals[3] = {1.0f, 1.0f, 1.0f};
         ::memcpy(imconfig.mean, mean, sizeof(mean));
