@@ -39,7 +39,7 @@ $(wildcard src/LaneDetect/*.c)\
 $(wildcard src/FaceAlignment/*.cpp)\
 $(wildcard src/FaceAlignment/*.c)\
 $(wildcard src/ObjectDetect/*.cpp)\
-$(wildcard srcObjectDetect/*.c)
+$(wildcard src/ObjectDetect/*.c)
 # $(wildcard src/PicRecognize/*.cpp)\
 # $(wildcard src/PicRecognize/*.c)\
 

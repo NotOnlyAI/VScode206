@@ -16,8 +16,6 @@ unsigned char M2_crop_databuff[2048*2048*3];
 
 
 FaceAlignment::FaceAlignment() {
-
-
 }
 
 

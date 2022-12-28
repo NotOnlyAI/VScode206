@@ -104,10 +104,14 @@ int main(int argc, char *argv[])
 {
     
     auto handle = dlopen("libMNN_CL.so", RTLD_NOW);
-    cv::Mat image=cv::imread("2.jpg");
-    M2::LandmarkInfo landmarks;
-    M2_FaceAlignment_ForwardBGR_MaxFace(image,landmarks);
-    FR_Show_PTS(image,landmarks);
+    cv::Mat image=cv::imread("1.jpg");
+
+    // {
+    //         M2::LandmarkInfo landmarks;
+    // M2_FaceAlignment_ForwardBGR_MaxFace(image,landmarks);
+    // FR_Show_PTS(image,landmarks);
+    // }
+
 
     // cv::Mat image;
     // cv::resize(raw_image, image, cv::Size(240, 320));
@@ -121,14 +125,16 @@ int main(int argc, char *argv[])
     // std::vector<M2::lane_DECODE> final_lane;
     // M2_LaneDetect_ForwardBGR(image,final_lane);
 
-    // while(1)
-    // {
-    //     M2::DetectResult result;
-    //     M2_ObjectDetect_ForwardBGR(image,result);
-    //     // std::vector<M2::lane_DECODE> final_lane;
-    //     // M2_LaneDetect_ForwardBGR(image,final_lane);
-    //     sleep(1);
-    // }
+    while(1)
+    {
+        M2::ObjectInfo objectinfo;
+        M2_ObjectDetect_ForwardBGR(image,objectinfo);
+
+        FaceDetect_visImg(image,objectinfo);
+        // std::vector<M2::lane_DECODE> final_lane;
+        // M2_LaneDetect_ForwardBGR(image,final_lane);
+        sleep(1);
+    }
 
 
     // for(int i=0;i<10;i++)

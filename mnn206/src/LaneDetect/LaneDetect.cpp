@@ -261,32 +261,6 @@ int LaneDetect::decode(std::vector< MNN::Tensor*> &outputTensors_host)
 }
 
 
-void LaneDetect::visImg(const M2::ImgData_T &imagedata, std::vector<lane_DECODE> final_lane) 
-{
-    cv::Mat ori_image(cv::Size(imagedata.width, imagedata.height), CV_8UC3);
-	ori_image.data =imagedata.data;
-    cv::Mat vis_img=ori_image.clone();
-
-
-    float sx = float(image_w) / float(in_w);
-    float sy = float(image_h) / float(in_h);
-    //cv::Mat qqq = cv::Mat::zeros(720, 1280, CV_8UC3);
-    for (int i = 0; i < final_lane.size(); i++)
-    {
-        for (int j = 0; j < final_lane[i].Lane.size() - 1; j++) {
-            float px = final_lane[i].Lane[j].x;
-            float py = final_lane[i].Lane[j].y;
-            cv::Point P;
-            P.x = int(px * sx);
-            P.y = int(py * sy);
-            if (P.x > 0 && P.x < 1280) {
-                cv::circle(vis_img, P, 5, cv::Scalar(0, 0, 255), -1);
-            }
-        }
-    }
-    cv::imshow("11",vis_img);
-    cv::waitKey(0);
-}
 
 float LaneDetect::calc_err_dis_with_pos(lane_DECODE L_1, lane_DECODE L_2) // ���������ߵľ���
 {

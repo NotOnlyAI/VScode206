@@ -10,6 +10,89 @@
 using namespace std;
 
 
+static inline float intersection_area(const Object &a, const Object &b) {
+  cv::Rect_<float> inter = a.rect & b.rect;
+  return inter.area();
+}
+
+static void qsort_descent_inplace(std::vector<Object> &faceobjects, int left,
+                                  int right) {
+  int i = left;
+  int j = right;
+  float p = faceobjects[(left + right) / 2].prob;
+
+  while (i <= j) {
+    while (faceobjects[i].prob > p)
+      i++;
+
+    while (faceobjects[j].prob < p)
+      j--;
+
+    if (i <= j) {
+      // swap
+      std::swap(faceobjects[i], faceobjects[j]);
+
+      i++;
+      j--;
+    }
+  }
+
+#pragma omp parallel sections
+  {
+#pragma omp section
+    {
+      if (left < j)
+        qsort_descent_inplace(faceobjects, left, j);
+    }
+#pragma omp section
+    {
+      if (i < right)
+        qsort_descent_inplace(faceobjects, i, right);
+    }
+  }
+}
+
+static void qsort_descent_inplace(std::vector<Object> &objects) {
+  if (objects.empty())
+    return;
+
+  qsort_descent_inplace(objects, 0, objects.size() - 1);
+}
+
+static void nms_sorted_bboxes(const std::vector<Object> &faceobjects,
+                              std::vector<int> &picked, float nms_threshold) {
+  picked.clear();
+
+  const int n = faceobjects.size();
+
+  std::vector<float> areas(n);
+  for (int i = 0; i < n; i++) {
+    areas[i] = faceobjects[i].rect.area();
+  }
+
+  for (int i = 0; i < n; i++) {
+    const Object &a = faceobjects[i];
+
+    int keep = 1;
+    for (int j = 0; j < (int)picked.size(); j++) {
+      const Object &b = faceobjects[picked[j]];
+
+      // intersection over union
+      float inter_area = intersection_area(a, b);
+      float union_area = areas[i] + areas[picked[j]] - inter_area;
+      // float IoU = inter_area / union_area
+      if (inter_area / union_area > nms_threshold)
+        keep = 0;
+    }
+
+    if (keep)
+      picked.push_back(i);
+  }
+}
+
+
+
+
 ObjectDetect::ObjectDetect() {
 
 }
@@ -43,6 +126,23 @@ int ObjectDetect::init(int deviceTpye,int print_config,int modelType)
         in_h=480;
         in_w=480;
         input_blob_names={"input0"};
+        output_blob_names={"/head/Concat_output_0","/head/Concat_1_output_0","/head/Concat_2_output_0"};
+        float mean[3]     = {0.0f, 0.0f, 0.0f};
+        float normals[3] = {1.0f, 1.0f, 1.0f};
+        ::memcpy(imconfig.mean, mean, sizeof(mean));
+        ::memcpy(imconfig.normal, normals, sizeof(normals));
+        imconfig.sourceFormat = MNN::CV::BGR;
+        imconfig.destFormat = MNN::CV::BGR;
+        pretreat=std::shared_ptr<MNN::CV::ImageProcess>(MNN::CV::ImageProcess::create(imconfig));
+    }
+
+
+    if (modelType==1){ 
+        mnnPath="./models206/yolox_s_extract.mnn" ;
+        dimType = MNN::Tensor::CAFFE;
+        in_h=640;
+        in_w=640;
+        input_blob_names={"images"};
         output_blob_names={"/head/Concat_output_0","/head/Concat_1_output_0","/head/Concat_2_output_0"};
         float mean[3]     = {0.0f, 0.0f, 0.0f};
         float normals[3] = {1.0f, 1.0f, 1.0f};
@@ -128,62 +228,47 @@ int ObjectDetect::ForwardBGR(const cv::Mat &image,M2::ObjectInfo &objectinfo) {
     for (int i = 0; i < output_blob_names.size(); i++) {
 		outputTensors[i]->copyToHostTensor(outputTensors_host[i]);
 	}
+
+    decode(outputTensors_host);
+
+
     if(m_print>=1){
         chrono::duration<double> elapsed2 = chrono::steady_clock::now() - start;
-        cout << "net time:" << elapsed2.count() << " s" << endl;
+        cout << "ObjectDetect time:" << elapsed2.count() << " s" << endl;
         outputTensors_host[0]->printShape();
-        for (int i = 0; i < 20; ++i) {
-            MNN_PRINT("copy %f\n", outputTensors_host[0]->host<float>()[i]);
-        }
+        // for (int i = 0; i < 20; ++i) {
+        //     MNN_PRINT("copy %f\n", outputTensors_host[0]->host<float>()[i]);
+        // }
     }
 
 
 
-    // decode(outputTensors_host);
 
 
     
-    // rectinfo.nNum=m_rectinfo.nNum;
-    // for (int j = 0; j < rectinfo.nNum; j++)
-    // {
-    //     rectinfo.boxes[j] = m_rectinfo.boxes[j];
-    //     rectinfo.labels[j] = m_rectinfo.labels[j];
-    // }
 
 
-    // if(rectinfo.nNum>1 && (max_or_mid==0 || max_or_mid==1))
-    // {
-    //     int index;
-    //     M2::STRU_RectInfo_T temp_rectinfo;
-    //     if (max_or_mid==0)
-    //     {
-    //         temp_rectinfo=GetMaxFace(rectinfo,index);
-    //     }else if (max_or_mid==1)
-    //     {
-    //         temp_rectinfo=GetMidFace(rectinfo,image_w,image_h,index);
-    //     }else
-    //     {
-    //         temp_rectinfo=GetMaxFace(rectinfo,index);
-    //     }
-    //     // STRU_LandmarkInfo_T temp_landmarkinfo;
-    //     // temp_landmarkinfo.nFaceNum=1;
-    //     // temp_landmarkinfo.landmark[0]=landmarkinfo.landmark[index];
-    //     rectinfo=temp_rectinfo;
-    //     // landmarkinfo=temp_landmarkinfo;
-    // }
 
 
     // if(m_print>=1){
     //     chrono::duration<double> elapsed3 = chrono::steady_clock::now() - start;
-    //     cout << "ObjectDetect Decode time:" << elapsed3.count() << " s" << endl;
+    //     cout << "ObjectDetect time:" << elapsed3.count() << " s" << endl;
     // }
+    objectinfo.ObjectNum=m_objInfo.ObjectNum;
+    for (int i = 0; i < m_objInfo.ObjectNum; i++)
+    {
+        objectinfo.objects[i].rect=m_objInfo.objects[i].rect;
+        objectinfo.objects[i].prob=m_objInfo.objects[i].prob;
+        objectinfo.objects[i].label=m_objInfo.objects[i].label;
+    }
 
-    // if(m_print>=2){
-    //     for (int j = 0; j < rectinfo.nNum; j++)
-    //     {
-    //         cout <<j << ": " << rectinfo.boxes[j].xmin << " " << rectinfo.boxes[j].ymin << " "<< rectinfo.boxes[j].width << " "<< rectinfo.boxes[j].height << " "<<rectinfo.labels[j].score<< endl;
-    //     }
-    // }
+
+    if(m_print>=2){
+        for (int i = 0; i < m_objInfo.ObjectNum; i++)
+        {
+            cout <<i << ": " << m_objInfo.objects[i].rect.x << " " << m_objInfo.objects[i].rect.y << " "<< m_objInfo.objects[i].rect.width << " "<< m_objInfo.objects[i].rect.height << " "<<m_objInfo.objects[i].label<<" "<<m_objInfo.objects[i].prob<< endl;
+        }
+    }
 
     return 0;
 }
@@ -198,8 +283,8 @@ int ObjectDetect::decode(std::vector< MNN::Tensor*> &outputTensors_host)
     // }
 
 
-    float box[3000][5];
-    float landmark[3000][10];
+    // float box[3000][5];
+    // float landmark[3000][10];
 
     std::vector<int> indexes = {};
     std::vector<float*> vec_boxs = {};
@@ -213,12 +298,12 @@ int ObjectDetect::decode(std::vector< MNN::Tensor*> &outputTensors_host)
 	// 	outputTensors_host[i]->printShape();
 	// }
 
-//     int start=0;
-//     int end=4;
+    int start=0;
+    int end=output_blob_names.size();
 //     int grid_hs[4];
 //     int grid_ws[4];
 //     int BboxNumEachGrid[4]={3,2,2,3};
-//     float BoxSteps[4]={8,16,32,64};
+    float strides[3]={8,16,32};
 //     float BoxMinSizes[4][3] = {{10, 16, 24}, {32, 48,0}, {64, 96,0}, {128, 192, 256}};
 //     grid_hs[0]=40;grid_hs[1]=20;grid_hs[2]=10;grid_hs[3]=5;
 //     grid_ws[0]=30;grid_ws[1]=15;grid_ws[2]=8;grid_ws[3]=4;
@@ -238,127 +323,115 @@ int ObjectDetect::decode(std::vector< MNN::Tensor*> &outputTensors_host)
 //     float f32Height;
 //     int N=0;
 //     int BboxNum=0;
-//     for(int i = start; i < end; i++)
-//     {
-//         uint32_t u32Offset=0;
-//         uint32_t u32OffsetScore=0;
+    float x_center;
+    float y_center;
+    float x0;
+    float y0;
+    float ww;
+    float hh;
+    float box_objectness;
+    float box_cls_score;
+    float box_prob;
+    std::vector<Object> proposals;
+    // std::vector<Object> objects;
+    for(int i = start; i < end; i++)
+    {
+        uint32_t u32Offset=0;
+        uint32_t u32OffsetScore=0;
 
 
-//         int  grid_h = grid_hs[i];
-//         int  grid_w = grid_ws[i];
-//         int  grid_c_bbox =4;
+        int  grid_h = outputTensors_host[i]->height();
+        int  grid_w = outputTensors_host[i]->width();
+        int  grid_c = outputTensors_host[i]->channel();
+        float  stride =strides[i];
 
-//         for(int j = 0; j < grid_h*grid_w; j++)
-//         {
+        // cout<<i<<":"<<grid_h<<","<<grid_w <<","<<grid_c<<endl;
+
+        for(int h=0;h<grid_h;h++)
+        {
+            for(int w=0;w<grid_w;w++)
+            {
+
+                float max_val=0.999;
+                float min_val=0.001;
 
 
-//             for(int k = 0; k < BboxNumEachGrid[i]; k++)
-//             {
-
-
+                box_objectness=outputTensors_host[i]->host<float>()[w+h*grid_w+4*grid_h*grid_w];
                
-//                 u32OffsetScore = (j * BboxNumEachGrid[i] + k) * 2;
-//                 SVP_NNIE_SoftMax(&(outputTensors_host[i]->host<float>()[u32OffsetScore]), 2);
-//                 f32Score0=outputTensors_host[i]->host<float>()[u32OffsetScore];
-//                 f32Score1=outputTensors_host[i]->host<float>()[u32OffsetScore+1];
+                if(box_objectness>0.5)
+                {
+                    
+                    for(int c=5;c<grid_c;c++)
+                    {
+                        box_cls_score = outputTensors_host[i]->host<float>()[w+h*grid_w+c*grid_h*grid_w];
+                        box_prob = box_objectness * box_cls_score;
+                        if(box_prob>0.3)
+                        {
+                            
+
+
+                            x_center = (outputTensors_host[i]->host<float>()[w+h*grid_w+0*grid_h*grid_w]+w)*stride;
+                            y_center = (outputTensors_host[i]->host<float>()[w+h*grid_w+1*grid_h*grid_w]+h)*stride;
+                            ww = exp(outputTensors_host[i]->host<float>()[w+h*grid_w+2*grid_h*grid_w])*stride;
+                            hh = exp(outputTensors_host[i]->host<float>()[w+h*grid_w+3*grid_h*grid_w])*stride;
+                            x0 = x_center - ww * 0.5f;
+                            y0 = y_center - hh * 0.5f;
+
+                            // cout<<i<<":"<<h<<":"<<w<<":"<<c<<":"<<x_center<<","<<y_center<<","<<ww<<","<<hh<<","<<box_prob<<endl;
+
+                            Object obj;
+                            obj.rect.x = x0;
+                            obj.rect.y = y0;
+                            obj.rect.width = ww;
+                            obj.rect.height = hh;
+                            obj.label = c-5;
+                            obj.prob = box_prob;
+
+                            proposals.push_back(obj);
+                        }
+                    }
+                }
                 
-                
-//                 // u32Offset = (j * BboxNumEachGrid[i] + k) * 4;
-//                 // f32X = outputTensors_host[i+4]->host<float>()[u32Offset + 0];
-//                 // f32Y = outputTensors_host[i+4]->host<float>()[u32Offset + 1];
-//                 // f32Width = outputTensors_host[i+4]->host<float>()[u32Offset + 2];
-//                 // f32Height = outputTensors_host[i+4]->host<float>()[u32Offset + 3];
+            }
+        }
+    }
 
-                
+    qsort_descent_inplace(proposals);
 
-//                 // cout<<N<<":"<<f32X<<","<<f32Y <<","<<f32Width<<","<<f32Height<<","<<f32Score1<<endl;
-
-//                 if(f32Score1>0.5)
-//                 {
-//                     uint32_t x = j % grid_w;
-//                     uint32_t y = j / grid_w;
-//                     float dense_cx = (x+0.5) * BoxSteps[i] / in_w;
-//                     float dense_cy = (y+0.5) * BoxSteps[i] / in_h;
-//                     float s_kx = BoxMinSizes[i][k] / in_w;
-//                     float s_ky = BoxMinSizes[i][k] / in_h;
-
-//                     float max_val=0.999;
-//                     float min_val=0.001;
-
-
-//                     u32Offset = (j * BboxNumEachGrid[i] + k) * 4;
-
-//                     f32X = outputTensors_host[i+4]->host<float>()[u32Offset + 0]*0.1*s_kx+dense_cx;
-//                     f32Y = outputTensors_host[i+4]->host<float>()[u32Offset + 1]*0.1*s_ky+dense_cy;
-//                     f32Width = exp(outputTensors_host[i+4]->host<float>()[u32Offset + 2]*0.2)*s_kx;
-//                     f32Height = exp(outputTensors_host[i+4]->host<float>()[u32Offset + 3]*0.2)*s_ky;
-
-//                     // cout<<u32Offset<<" score:"<<f32Score1<<","<<f32X<<","<<f32Y<<","<<f32Width<<","<<f32Height<<","<<endl;
-
-//                     f32Xmin = min(float(f32X-0.5*f32Width),max_val);
-//                     f32Ymin = min(float(f32Y-0.5*f32Height),max_val);
-//                     f32Xmax  =min(float(f32X+0.5*f32Width),max_val);
-//                     f32Ymax = min(float(f32Y+0.5*f32Height),max_val);
-//                     f32Xmin = max(f32Xmin,min_val);
-//                     f32Ymin = max(f32Ymin,min_val);
-//                     f32Xmax = max(f32Xmax,min_val);
-//                     f32Ymax = max(f32Ymax,min_val);
-//                     box[N][0] = f32Xmin;
-//                     box[N][1] = f32Ymin;
-//                     box[N][2] = max(f32Xmax-f32Xmin,min_val);
-//                     box[N][3] = max(f32Ymax-f32Ymin,min_val);
-//                     box[N][4] = f32Score1;
-//                     vec_boxs.push_back(box[N]);
-
-//                     // cout<<u32OffsetScore<<" score:"<<f32Score1<<","<<f32Xmin<<","<<f32Ymin<<","<<f32Xmax<<","<<f32Ymax<<","<<endl;
-//                     BboxNum++;
-//                 }
-//                 N++;
-//             }
-//         }
-//     }
-//     // cout<<"BboxNum:"<<BboxNum<<endl;
-//     nms_boxs = nms(vec_boxs, 0.5,0.5,nms_indexes);
-//     // cout<<"nms_boxs:"<<nms_boxs.size()<<endl;
+    std::vector<int> picked;
+    nms_sorted_bboxes(proposals, picked, 0.5);
+    int count = picked.size();
+    m_objInfo.ObjectNum=count;
     
-//     m_rectinfo.nNum=0;
-//     // landmarkinfo.nFaceNum=0;
+    std::vector<Object> objects;
+    objects.resize(count);
 
-//     for (int j = 0; j < int(nms_boxs.size()); j++)
-//     {
-//         M2::Box rect;
-//         M2::Label label_;
-//         rect.xmin=nms_boxs.at(j)[0]*image_w;
-//         rect.ymin=nms_boxs.at(j)[1]*image_h;
-//         rect.width=nms_boxs.at(j)[2]*image_w;
-//         rect.height=nms_boxs.at(j)[3]*image_h;
-//         label_.cls=1;
-//         label_.score=nms_boxs.at(j)[4];
+    for (int i = 0; i < count; i++) {
+        objects[i] = proposals[picked[i]];
 
-//         m_rectinfo.boxes[j] = rect;
-//         m_rectinfo.labels[j] = label_;
+        // adjust offset to original unpadded
+        float x0 = (objects[i].rect.x) / float(in_w)*image_w;
+        float y0 = (objects[i].rect.y) / float(in_h)*image_h;
+        float x1 = (objects[i].rect.x + objects[i].rect.width) / float(in_w)*image_w;;
+        float y1 = (objects[i].rect.y + objects[i].rect.height) / float(in_h)*image_h;
+        // cout<<" x0:"<<x0<<" y0:"<<y0<<" x1:"<<x1<<" y1:"<<y1<<endl;
+        // clip
+        x0 = std::max(std::min(x0, (float)(image_w - 1)), 0.f);
+        y0 = std::max(std::min(y0, (float)(image_h - 1)), 0.f);
+        x1 = std::max(std::min(x1, (float)(image_w - 1)), 0.f);
+        y1 = std::max(std::min(y1, (float)(image_h- 1)), 0.f);
 
-        
-//         // STRU_Landmark_T landmark_t;
-//         // landmark_t.point[0].x=nms_landmarks.at(j)[0]*float(origin_image_width);
-//         // landmark_t.point[0].y=nms_landmarks.at(j)[1]*float(origin_image_height);
-//         // landmark_t.point[1].x=nms_landmarks.at(j)[2]*origin_image_width;
-//         // landmark_t.point[1].y=nms_landmarks.at(j)[3]*origin_image_height;
-//         // landmark_t.point[2].x=nms_landmarks.at(j)[4]*origin_image_width;
-//         // landmark_t.point[2].y=nms_landmarks.at(j)[5]*origin_image_height;
-//         // landmark_t.point[3].x=nms_landmarks.at(j)[6]*origin_image_width;
-//         // landmark_t.point[3].y=nms_landmarks.at(j)[7]*origin_image_height;
-//         // landmark_t.point[4].x=nms_landmarks.at(j)[8]*origin_image_width;
-//         // landmark_t.point[4].y=nms_landmarks.at(j)[9]*origin_image_height;
-//         // landmark_t.score=1;
-//         // landmarkinfo.landmark[j]=landmark_t;
-// //        cout<<j<<":"<<landmarkinfo.landmark[j].point[0].x<<endl;
+        // cout<<" x0:"<<x0<<" y0:"<<y0<<" x1:"<<x1<<" y1:"<<y1<<endl;
+        m_objInfo.objects[i].rect.x = x0;
+        m_objInfo.objects[i].rect.y = y0;
+        m_objInfo.objects[i].rect.width = x1 - x0;
+        m_objInfo.objects[i].rect.height = y1 - y0;
+        m_objInfo.objects[i].label=objects[i].label;
+        m_objInfo.objects[i].prob=objects[i].prob;
+    }
+    // cout<<"m_objInfo.ObjectNum : "<<m_objInfo.ObjectNum<<endl;
 
-//     }
 
-//     m_rectinfo.nNum=m_rectinfo.nNum+int(nms_boxs.size());
-    // landmarkinfo.nFaceNum=landmarkinfo.nFaceNum+int(nms_boxs.size());
-    // cout<<"rectinfo.nFaceNum:"<<rectinfo.nFaceNum<<endl;
     return 0;
 
 }

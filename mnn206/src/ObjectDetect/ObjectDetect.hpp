@@ -35,7 +35,7 @@ public:
 
     // int visImg(const M2::ImgData_T &imgdata,const M2::DetectResult &re);
 
-    // M2::DetectResult  m_rectinfo;
+    M2::ObjectInfo  m_objInfo;
     bool model_is_ok=false;
 
 private:

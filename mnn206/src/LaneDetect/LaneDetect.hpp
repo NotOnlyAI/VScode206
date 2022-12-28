@@ -41,7 +41,7 @@ public:
     std::vector<lane_DECODE> m_select_lane;
     std::vector<lane_DECODE> m_final_lane_with_type;
 
-    void visImg(const M2::ImgData_T &imgdata, std::vector<lane_DECODE> final_lane);
+
     
      int model_is_ok;
 private:
