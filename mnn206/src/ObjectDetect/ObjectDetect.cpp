@@ -106,12 +106,12 @@ int ObjectDetect::init(int deviceTpye,int print_config,int modelType)
     string mnnPath;
 
 
-    mnnPath="./models206/yolox_s_480_480_relu_extract.mnn" ;
+    mnnPath="./models206/yolox_s_coco_extract.mnn" ;
     dimType = MNN::Tensor::CAFFE;
     in_h=480;
     in_w=480;
     input_blob_names={"input0"};
-    output_blob_names={"/head/Concat_output_0","/head/Concat_1_output_0","/head/Concat_2_output_0"};
+    output_blob_names={"734","755","776"};
     float mean[3]     = {0.0f, 0.0f, 0.0f};
     float normals[3] = {1.0f, 1.0f, 1.0f};
     ::memcpy(imconfig.mean, mean, sizeof(mean));
@@ -122,12 +122,12 @@ int ObjectDetect::init(int deviceTpye,int print_config,int modelType)
 
 
     if (modelType==0){ 
-        mnnPath="./models206/yolox_s_480_480_relu_extract.mnn" ;
+        mnnPath="./models206/yolox_s_coco_extract.mnn" ;
         dimType = MNN::Tensor::CAFFE;
         in_h=480;
         in_w=480;
         input_blob_names={"input0"};
-        output_blob_names={"/head/Concat_output_0","/head/Concat_1_output_0","/head/Concat_2_output_0"};
+        output_blob_names={"734","755","776"};
         float mean[3]     = {0.0f, 0.0f, 0.0f};
         float normals[3] = {1.0f, 1.0f, 1.0f};
         ::memcpy(imconfig.mean, mean, sizeof(mean));
@@ -249,28 +249,17 @@ int ObjectDetect::ForwardBGR(const cv::Mat &image,M2::ObjectInfo &objectinfo) {
     decode(outputTensors_host);
 
 
-    if(m_print>=1){
-        chrono::duration<double> elapsed2 = chrono::steady_clock::now() - start;
-        cout << "ObjectDetect time:" << elapsed2.count() << " s" << endl;
-        outputTensors_host[0]->printShape();
-        // for (int i = 0; i < 20; ++i) {
-        //     MNN_PRINT("copy %f\n", outputTensors_host[0]->host<float>()[i]);
-        // }
-    }
-
-
-
-
-
-    
-
-
-
-
     // if(m_print>=1){
-    //     chrono::duration<double> elapsed3 = chrono::steady_clock::now() - start;
-    //     cout << "ObjectDetect time:" << elapsed3.count() << " s" << endl;
+    //     chrono::duration<double> elapsed2 = chrono::steady_clock::now() - start;
+    //     cout << "ObjectDetect time:" << elapsed2.count() << " s" << endl;
+    //     outputTensors_host[0]->printShape();
+    //     // for (int i = 0; i < 20; ++i) {
+    //     //     MNN_PRINT("copy %f\n", outputTensors_host[0]->host<float>()[i]);
+    //     // }
     // }
+
+
+
     objectinfo.ObjectNum=m_objInfo.ObjectNum;
     for (int i = 0; i < m_objInfo.ObjectNum; i++)
     {
@@ -279,13 +268,17 @@ int ObjectDetect::ForwardBGR(const cv::Mat &image,M2::ObjectInfo &objectinfo) {
         objectinfo.objects[i].label=m_objInfo.objects[i].label;
     }
 
-
-    if(m_print>=2){
-        for (int i = 0; i < m_objInfo.ObjectNum; i++)
-        {
-            cout <<i << ": " << m_objInfo.objects[i].rect.x << " " << m_objInfo.objects[i].rect.y << " "<< m_objInfo.objects[i].rect.width << " "<< m_objInfo.objects[i].rect.height << " "<<m_objInfo.objects[i].label<<" "<<m_objInfo.objects[i].prob<< endl;
-        }
+    if(m_print>=1){
+        chrono::duration<double> elapsed3 = chrono::steady_clock::now() - start;
+        cout << "ObjectDetect time:" << elapsed3.count() << " s" << endl;
     }
+
+    // if(m_print>=2){
+    //     for (int i = 0; i < m_objInfo.ObjectNum; i++)
+    //     {
+    //         cout <<i << ": " << m_objInfo.objects[i].rect.x << " " << m_objInfo.objects[i].rect.y << " "<< m_objInfo.objects[i].rect.width << " "<< m_objInfo.objects[i].rect.height << " "<<m_objInfo.objects[i].label<<" "<<m_objInfo.objects[i].prob<< endl;
+    //     }
+    // }
 
     return 0;
 }
@@ -462,11 +455,11 @@ ObjectDetect::~ObjectDetect() {
         net->releaseModel();
         net->releaseSession(session);
         for (int i = 0; i < input_blob_names.size(); i++) {
-            delete inputTensors[i];
+            // delete inputTensors[i];
             delete inputTensors_host[i];
         }
         for (int i = 0; i < output_blob_names.size(); i++) {
-            delete outputTensors[i];
+            // delete outputTensors[i];
             delete outputTensors_host[i];
         }
         inputTensors.clear();

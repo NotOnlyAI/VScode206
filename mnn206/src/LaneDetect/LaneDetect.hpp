@@ -34,7 +34,7 @@ public:
 
     
     int ForwardBGR(const cv::Mat &image,std::vector<lane_DECODE> &final_lane);
-    int init(int deviceTpye,int print_config);
+    int init(int deviceTpye,int print_config,int modelType);
 
 
     std::vector<lane_DECODE> m_decode_lane;
@@ -79,6 +79,7 @@ private:
     int image_h;
     int image_w;
     int m_print;
+    int m_modelType;
    
     
 

@@ -11,8 +11,6 @@ using namespace M2;
 
 
 
-unsigned char M2_crop_databuff[2048*2048*3];
-
 
 
 FaceAlignment::FaceAlignment() {
@@ -176,33 +174,33 @@ int FaceAlignment::ForwardBGR(const cv::Mat &image,const M2::Object &face,M2::La
     for (int i = 0; i < output_blob_names.size(); i++) {
 		outputTensors[i]->copyToHostTensor(outputTensors_host[i]);
 	}
-    if(m_print>=1){
-        chrono::duration<double> elapsed2 = chrono::steady_clock::now() - start;
-        cout << "net time:" << elapsed2.count() << " s" << endl;
-        outputTensors_host[0]->printShape();
-        for (int i = 0; i < 20; ++i) {
-            MNN_PRINT("copy %f\n", outputTensors_host[0]->host<float>()[i]);
-        }
-    }
+    // if(m_print>=1){
+    //     chrono::duration<double> elapsed2 = chrono::steady_clock::now() - start;
+    //     cout << "net time:" << elapsed2.count() << " s" << endl;
+    //     outputTensors_host[0]->printShape();
+    //     for (int i = 0; i < 20; ++i) {
+    //         MNN_PRINT("copy %f\n", outputTensors_host[0]->host<float>()[i]);
+    //     }
+    // }
 
 
     decode(outputTensors_host);
 
-    if(m_print>=2){
-        landmarkinfo.numPoints= landmark68.numPoints;
-        for (int i = 0; i < landmarkinfo.numPoints; ++i) {
-            landmarkinfo.landmark[i].x= landmark68.landmark[i].x+rect_new.x;
-            landmarkinfo.landmark[i].y= landmark68.landmark[i].y+rect_new.y;
-            MNN_PRINT("i=%d  %f, %f\n", i,landmarkinfo.landmark[i].x, landmarkinfo.landmark[i].y);
-        }
+
+    landmarkinfo.numPoints= landmark68.numPoints;
+    for (int i = 0; i < landmarkinfo.numPoints; ++i) {
+        landmarkinfo.landmark[i].x= landmark68.landmark[i].x+rect_new.x;
+        landmarkinfo.landmark[i].y= landmark68.landmark[i].y+rect_new.y;
+        // MNN_PRINT("i=%d  %f, %f\n", i,landmarkinfo.landmark[i].x, landmarkinfo.landmark[i].y);
     }
 
 
 
-    auto end = chrono::steady_clock::now();
-    chrono::duration<double> elapsed = end - start;
-    cout << "FaceAlignment inference time:" << elapsed.count() << " s" << endl;
-
+    if(m_print>=1){
+        auto end = chrono::steady_clock::now();
+        chrono::duration<double> elapsed = end - start;
+        cout << "FaceAlignment inference time:" << elapsed.count() << " s" << endl;
+    }
     return 0;
 }
 

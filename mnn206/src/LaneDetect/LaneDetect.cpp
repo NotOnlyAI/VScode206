@@ -13,28 +13,17 @@ using namespace M2;
 LaneDetect::LaneDetect() {
 }
 
-int LaneDetect::init(int deviceTpye,int print_config){
+int LaneDetect::init(int deviceTpye,int print_config,int modelType){
 
     m_print=print_config;
-    string mnn_path="./models206/Vega_new_extract.mnn";
-    net = std::shared_ptr<MNN::Interpreter>(MNN::Interpreter::createFromFile(mnn_path.c_str()));
-    dimType = MNN::Tensor::CAFFE;
-    MNN_PRINT("LaneDetect Interpreter build, model_path: %s, dimType:%d\n",mnn_path.c_str(),dimType);
+    m_modelType=modelType;
 
+    string mnnPath="./models206/Vega_new_extract.mnn";
+    dimType = MNN::Tensor::CAFFE;
     in_h=288;
     in_w=512;
-
-
-    MNN::ScheduleConfig config;
-    config.type=(MNNForwardType)(deviceTpye);
-    config.mode = MNN_GPU_TUNING_NORMAL | MNN_GPU_MEMORY_IMAGE;
-    MNN::BackendConfig backendConfig;
-    backendConfig.precision = MNN::BackendConfig::Precision_Normal;
-    config.backendConfig = &backendConfig;
-    session = net->createSession(config);
-    MNN_PRINT("ScheduleConfig build, config.type: %d \n",config.type);
-
-
+    input_blob_names={ "input"};
+    output_blob_names={ "287","288"};
     float mean[3]     = {123.675f, 116.28f, 103.53f};
     float normals[3] = {0.017125f, 0.01751f, 0.01743f};
     ::memcpy(imconfig.mean, mean, sizeof(mean));
@@ -46,8 +35,39 @@ int LaneDetect::init(int deviceTpye,int print_config){
     MNN_PRINT("ImageProcess build, sourceFormat: %d, destFormat: %d \n",imconfig.sourceFormat,imconfig.destFormat);
 
 
+    if (modelType==0){ 
+        mnnPath="./models206/3.mnn";;
+        dimType = MNN::Tensor::CAFFE;
+        in_h=288;
+        in_w=512;
+        input_blob_names={ "input"};
+        output_blob_names={ "output_loc","output_cls"};
+        float mean[3]     = {123.675f, 116.28f, 103.53f};
+        float normals[3] = {0.017125f, 0.01751f, 0.01743f};
+        ::memcpy(imconfig.mean, mean, sizeof(mean));
+        ::memcpy(imconfig.normal, normals, sizeof(normals));
+        imconfig.sourceFormat = MNN::CV::BGR;
+        imconfig.destFormat = MNN::CV::BGR;
+        imconfig.filterType = MNN::CV::NEAREST;
+        pretreat=std::shared_ptr<MNN::CV::ImageProcess>(MNN::CV::ImageProcess::create(imconfig));
+    }
 
-    input_blob_names={ "input"};
+    net = std::shared_ptr<MNN::Interpreter>(MNN::Interpreter::createFromFile(mnnPath.c_str()));
+    MNN::ScheduleConfig config;
+    config.type=(MNNForwardType)(deviceTpye);
+    config.mode = MNN_GPU_TUNING_NORMAL | MNN_GPU_MEMORY_IMAGE;
+    MNN::BackendConfig backendConfig;
+    backendConfig.precision = MNN::BackendConfig::Precision_Normal;
+    backendConfig.memory    = MNN::BackendConfig::Memory_Normal;
+    backendConfig.power     = MNN::BackendConfig::Power_Normal;
+    config.backendConfig = &backendConfig;
+    session = net->createSession(config);
+    MNN_PRINT("Interpreter build, model_path: %s, dimType:%d\n",mnnPath.c_str(),dimType);
+
+
+
+
+   
     inputTensors.resize(input_blob_names.size());
     inputTensors_host.resize(input_blob_names.size());
     for (int i = 0; i < input_blob_names.size(); i++) {
@@ -58,7 +78,7 @@ int LaneDetect::init(int deviceTpye,int print_config){
 		inputTensors_host[i] = new MNN::Tensor(inputTensors[i], dimType);
 	}
 
-    output_blob_names={ "287","288"};
+    
     outputTensors.resize(output_blob_names.size());
     outputTensors_host.resize(output_blob_names.size());
 
@@ -118,14 +138,14 @@ int LaneDetect::ForwardBGR(const cv::Mat &image,std::vector<M2::lane_DECODE> &fi
 		outputTensors[i]->copyToHostTensor(outputTensors_host[i]);
 	}
 
-    if(m_print>=1){
-        chrono::duration<double> elapsed2 = chrono::steady_clock::now() - start;
-        cout << "LaneDetect time:" << elapsed2.count() << " s" << endl;
-        outputTensors_host[0]->printShape();
-        for (int i = 0; i < 20; ++i) {
-            MNN_PRINT("copy %f\n",  outputTensors_host[0]->host<float>()[i]);
-        }
-    }
+    // if(m_print>=1){
+    //     chrono::duration<double> elapsed2 = chrono::steady_clock::now() - start;
+    //     cout << "LaneDetect time:" << elapsed2.count() << " s" << endl;
+    //     outputTensors_host[0]->printShape();
+    //     // for (int i = 0; i < 20; ++i) {
+    //     //     MNN_PRINT("copy %f\n",  outputTensors_host[0]->host<float>()[i]);
+    //     // }
+    // }
     
 
     decode(outputTensors_host);

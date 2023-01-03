@@ -63,6 +63,8 @@ public:
 
 
     DetectResult  m_rectinfo;
+    M2::ObjectInfo  m_objInfo;
+
     bool model_is_ok=false;
 
 private:

@@ -27,7 +27,7 @@ M2_EXPORT int M2_LaneDetect_ForwardBGR(const cv::Mat &image,std::vector<M2::lane
 M2_EXPORT int M2_FaceAlignment_ForwardBGR(const cv::Mat &image,const M2::Object &face,M2::LandmarkInfo &landmarkinfo);
 
 
-M2_EXPORT int M2_FaceAlignment_ForwardBGR_MaxFace(const cv::Mat &image,M2::LandmarkInfo &landmarkinfo);
+M2_EXPORT int M2_FaceAlignment_ForwardBGR_MaxFace(const cv::Mat &image,M2::ObjectInfo &objectinfo,M2::LandmarkInfo &landmarkinfo);
 
 
 #endif

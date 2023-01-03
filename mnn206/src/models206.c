@@ -80,8 +80,9 @@ int M2_LaneDetect_Init(LaneDetect &myLaneDetect)
 	   config.ReadConfig("./models206/config.ini");
        int print_config = config.ReadInt("LaneDetect", "print", -1);
        int deviceTpye = config.ReadInt("LaneDetect", "deviceType", 0);
+       int modelType=config.ReadInt("LaneDetect", "modelType", 0);
 
-       myLaneDetect.init(deviceTpye,print_config);
+       myLaneDetect.init(deviceTpye,print_config,modelType);
        myLaneDetect.model_is_ok=true;
        TFLITE_LOG_ONCE(tflite::TFLITE_LOG_INFO,"myLaneDetect Init ok! ");
        return print_config;
@@ -192,12 +193,15 @@ int M2_ObjectDetect_ForwardBGR(const cv::Mat &image,M2::ObjectInfo &objectinfo)
 }
 
 
-int M2_FaceAlignment_ForwardBGR_MaxFace(const cv::Mat &image,M2::LandmarkInfo &landmarkinfo)
+int M2_FaceAlignment_ForwardBGR_MaxFace(const cv::Mat &image,M2::ObjectInfo &objectinfo,M2::LandmarkInfo &landmarkinfo)
 {
-    M2::ObjectInfo objectinfo;
     M2_FaceDetect_ForwardBGR(image,objectinfo,0);
+    if(objectinfo.ObjectNum>=1)
+    {
+        M2_FaceAlignment_ForwardBGR(image,objectinfo.objects[0],landmarkinfo);
+    }
 
-    M2_FaceAlignment_ForwardBGR(image,objectinfo.objects[0],landmarkinfo);
+    return 0;
     // FR_Show_PTS(image,landmarks);
 
 }
