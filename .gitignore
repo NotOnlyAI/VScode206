@@ -19,4 +19,6 @@
 *.so
 *.mnn
 *.o
+*.mp4
 /instances/face_antispoof/logs/
+/mnn206/gen/bin/

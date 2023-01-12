@@ -12,7 +12,7 @@ HDRDIRS	=./src ./src/sdc ./src/model ./src/socket ./src/deepsort ./src/recognize
 INCLUDES=$(addprefix -I,$(HDRDIRS))
 
 LIBDIRS	=./lib/aarch64
-LDFLAGS	=  $(addprefix -L,$(LIBDIRS)) -Wl,-z,relro,-z,noexecstack,--disable-new-dtags,-rpath,lib/:/usr/lib/:/usr/app/lib:./lib
+LDFLAGS	=  $(addprefix -L,$(LIBDIRS)) -Wl,-z,relro,-z,noexecstack,--disable-new-dtags,-rpath,lib/:/usr/lib/:/usr/app/lib:./lib:./lib/aarch64
 LDFLAGS += -lrt -lm -ldl -lpthread -lstdc++
 LDFLAGS += -lMNN
 LDFLAGS += -lopencv_core -lopencv_imgproc -lopencv_imgcodecs -lopencv_video -lopencv_highgui -lopencv_videoio
