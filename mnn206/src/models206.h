@@ -13,6 +13,10 @@
 #define M2_C_EXPORT extern "C" M2_EXPORT
 
 
+M2_EXPORT int M2_Lane(const cv::Mat &image,int &DepartureType);
+
+
+M2_EXPORT int M2_DMS(const cv::Mat &image,int &DMSTpye);
 
 
 M2_EXPORT int M2_FaceDetect_ForwardBGR(const cv::Mat &image,M2::ObjectInfo &objectinfo,int max_or_mid);

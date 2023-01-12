@@ -86,16 +86,43 @@ int FR_Show_PTS(const cv::Mat &ori_image,const M2::LandmarkInfo &landmarks)
 {
 
     cv::Mat image=ori_image.clone();
+    // for(int i=0;i<landmarks.numPoints;i++)
+    // {
+    //     cv::Point p1(landmarks.landmark[i].x ,landmarks.landmark[i].y);
+    //     std::cout << i <<"  x: "<< landmarks.landmark[i].x << "   y: "<< landmarks.landmark[i].y<<std::endl;
+    //     cv::circle(image, p1, 1, cv::Scalar(0, 255, 0), -1); 
+    // }
+
     for(int i=0;i<landmarks.numPoints;i++)
     {
         cv::Point p1(landmarks.landmark[i].x ,landmarks.landmark[i].y);
         std::cout << i <<"  x: "<< landmarks.landmark[i].x << "   y: "<< landmarks.landmark[i].y<<std::endl;
-        cv::circle(image, p1, 1, cv::Scalar(0, 255, 0), -1); 
+        // cv::circle(image, p1, 1, cv::Scalar(0, 255, 0), -1); 
+        if(i==60 || i==64 || 1)
+        {
+            std::stringstream fpsSs;
+            fpsSs << i;
+            cv::putText(image, fpsSs.str(), p1,cv::FONT_HERSHEY_COMPLEX, 0.3, cv::Scalar(0, 0, 255));
+        }
+        
     }
-    cv::imshow("11",image);
-    cv::waitKey(0);
+
+    cv::imwrite("11.jpg",image);
+    // cv::waitKey(0);
     return 1;
 }
+
+int Check_DMS()
+{
+    cv::Mat image=cv::imread("1.jpg");
+
+    int DMSType;
+    M2_DMS(image,DMSType);
+    cout<<"DMSType:"<<DMSType<<endl;
+
+    return 0;
+}
+
 
 
 int Check_LaneDetet()
@@ -135,8 +162,8 @@ int Check_LaneDetect_video()
         cap >> frame;
         if (frame.empty())
             break;
-        // if (n_frame>10)
-        //     break;
+        if (n_frame>200)
+            break;
         double t1 = static_cast<double>(cv::getTickCount());
 
         std::vector<M2::lane_DECODE> final_lane;
@@ -223,8 +250,8 @@ int Check_ObjectDetect_video()
         cap >> frame;
         if (frame.empty())
             break;
-        // if (n_frame>20)
-        //     break;
+        if (n_frame>100)
+            break;
         double t1 = static_cast<double>(cv::getTickCount());
 
         M2::ObjectInfo objectinfo;
@@ -461,13 +488,135 @@ int Check_FaceLandmark_video()
 
 
 
+int LDWdemo()
+{
+    cv::VideoCapture cap;
+    cap.open("video_0.mp4");
+    if (!cap.isOpened())
+    {
+        cout<<"video failed!"<<endl;
+        return -1;
+    }
+    int width = cap.get(cv::CAP_PROP_FRAME_WIDTH);             //帧宽度
+    int height = cap.get(cv::CAP_PROP_FRAME_HEIGHT);           //帧高度
+    int totalFrames = cap.get(cv::CAP_PROP_FRAME_COUNT);       //总帧数
+    int frameRate = cap.get(cv::CAP_PROP_FPS);                 //帧率 x frames/s
+    int ex = static_cast<int>(cap.get(cv::CAP_PROP_FOURCC));
+    char EXT[] = { (char)(ex & 0XFF),(char)((ex & 0XFF00) >> 8),(char)((ex & 0XFF0000) >> 16),(char)((ex & 0XFF000000) >> 24),0 };
+    cv::VideoWriter wri;
+    wri.open("video_0_lane.mp4", ex, frameRate, cv::Size(width, height));
+
+
+    cv::Mat frame;
+
+    double inferenceTime = 0.0;
+    int n_frame=0;
+    while (1) {
+        cap >> frame;
+        if (frame.empty())
+            break;
+        if (n_frame>200)
+            break;
+        cout<<"n_frame:"<<n_frame<<endl;
+        double t1 = static_cast<double>(cv::getTickCount());
+
+        int DepartureType;
+        M2_Lane(frame,DepartureType);
+
+        n_frame++;
+        if (n_frame<1) continue;
+
+        double t2 = static_cast<double>(cv::getTickCount());
+        if (inferenceTime == 0){
+            inferenceTime = (t2 - t1) / cv::getTickFrequency() * 1000;
+        }
+        else 
+        {
+            inferenceTime = inferenceTime * 0.95 + 0.05 * (t2 - t1) / cv::getTickFrequency() * 1000;
+        }
+
+        std::stringstream fpsSs;
+        fpsSs << "FPS: " << int(1000.0f / inferenceTime * 100) / 100.0f<<"     Warning: "<< DepartureType;
+        cv::putText(frame, fpsSs.str(), cv::Point(16, 32),cv::FONT_HERSHEY_COMPLEX, 0.8, cv::Scalar(0, 0, 255));
+
+        wri << frame;;
+        
+    } 
+
+}
+
+
+int DMSdemo()
+{
+
+    cv::VideoCapture cap;
+    cap.open("1.mp4");
+    if (!cap.isOpened())
+    {
+        cout<<"video failed!"<<endl;
+        return -1;
+    }
+    int width = cap.get(cv::CAP_PROP_FRAME_WIDTH);             //帧宽度
+    int height = cap.get(cv::CAP_PROP_FRAME_HEIGHT);           //帧高度
+    int totalFrames = cap.get(cv::CAP_PROP_FRAME_COUNT);       //总帧数
+    int frameRate = cap.get(cv::CAP_PROP_FPS);                 //帧率 x frames/s
+    cout<<"frameRate:"<<frameRate<<endl;
+    int ex = static_cast<int>(cap.get(cv::CAP_PROP_FOURCC));
+    char EXT[] = { (char)(ex & 0XFF),(char)((ex & 0XFF00) >> 8),(char)((ex & 0XFF0000) >> 16),(char)((ex & 0XFF000000) >> 24),0 };
+    cv::VideoWriter wri;
+    wri.open("1_DMS.mp4", ex, frameRate, cv::Size(width, height));
+
+
+    cv::Mat frame;
+    // cv::Mat frame=cv::imread("dog.jpg");
+    double inferenceTime = 0.0;
+    int n_frame=0;
+
+    while (1) {
+        cap >> frame;
+        if (frame.empty())
+            break;
+        if (n_frame>300)
+            break;
+        double t1 = static_cast<double>(cv::getTickCount());
+
+        int DMSType;
+        M2_DMS(frame,DMSType);
+        cout<<"DMSType:"<<DMSType<<endl;
+
+        n_frame++;
+        cout<<"n_frame:"<<n_frame<<endl;
+        if(n_frame<1) continue;
+
+        double t2 = static_cast<double>(cv::getTickCount());
+        if (inferenceTime == 0){
+            inferenceTime = (t2 - t1) / cv::getTickFrequency() * 1000;
+        }
+        else 
+        {
+            inferenceTime = inferenceTime * 0.95 + 0.05 * (t2 - t1) / cv::getTickFrequency() * 1000;
+        }
+
+        std::stringstream fpsSs;
+        fpsSs << "FPS: " << int(1000.0f / inferenceTime * 100) / 100.0f<<"   DMSType:"<<DMSType;
+        cv::putText(frame, fpsSs.str(), cv::Point(16, 32),cv::FONT_HERSHEY_COMPLEX, 0.8, cv::Scalar(0, 0, 255));
+        wri << frame;
+    } 
+
+    return 0;
+}
+
+
 
 
 int main(int argc, char *argv[])
 {
     
-    auto handle = dlopen("libMNN_CL.so", RTLD_NOW);
-    Check_LaneDetet_video();
+    // auto handle = dlopen("libMNN_CL.so", RTLD_NOW);
+    // LDWdemo();
+    DMSdemo();
+    // Check_FaceAlignment();
+
     // Check_ObjectDetect_video();
     // Check_FaceDetect_video();
     // Check_FaceLandmark_video();

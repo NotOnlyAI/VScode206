@@ -8,10 +8,10 @@ CXX = g++
 CC = g++
 AR = ar
 
-HDRDIRS	=./src ./src/sdc ./src/model ./src/socket ./src/deepsort ./src/recognize ./src/tlv ./include ./third ./third/eigen3
+HDRDIRS	=./src ./src/sdc ./src/model ./src/socket ./src/deepsort ./src/recognize ./src/tlv  ./include ./third ./third/eigen3
 INCLUDES=$(addprefix -I,$(HDRDIRS))
 
-LIBDIRS	=./lib ./third/libopencv
+LIBDIRS	=./lib/x86
 LDFLAGS	=  $(addprefix -L,$(LIBDIRS)) -Wl,-z,relro,-z,noexecstack,--disable-new-dtags,-rpath,lib/:/usr/lib/:/usr/app/lib:./lib
 LDFLAGS += -lrt -lm -ldl -lpthread -lstdc++
 LDFLAGS += -lMNN -lMNN_CL
@@ -66,7 +66,7 @@ GENDIR := $(MAKEFILE_DIR)/gen/
 OBJDIR := $(GENDIR)obj/
 BINDIR := $(GENDIR)bin/
 LIBDIR := $(GENDIR)lib/
-MYFUNC_BINARY := $(BINDIR)/lib/libmodels206.so
+MYFUNC_BINARY := $(BINDIR)/lib/x86/libmodels206.so
 
 
 MYFUNC_OBJS := $(addprefix $(OBJDIR), \

@@ -11,11 +11,11 @@ AR = ar
 HDRDIRS	=./src ./include ./third ./third/eigen3
 INCLUDES=$(addprefix -I,$(HDRDIRS))
 
-LIBDIRS	=./lib ./third/libopencv
-LDFLAGS	=  $(addprefix -L,$(LIBDIRS)) -Wl,-z,relro,-z,noexecstack,--disable-new-dtags,-rpath,lib/:/usr/lib/:/usr/app/lib:./lib
+LIBDIRS	=./lib/x86 ./third/libopencv
+LDFLAGS	=  $(addprefix -L,$(LIBDIRS)) -Wl,-z,relro,-z,noexecstack,--disable-new-dtags,-rpath,lib/:/usr/lib/:/usr/app/lib:./lib:./lib/x86
 LDFLAGS += -lrt -lm -ldl -lpthread -lstdc++
 LDFLAGS += -lMNN -lMNN_CL -lmodels206
-LDFLAGS += -lopencv_core -lopencv_imgproc -lopencv_imgcodecs -lopencv_video -lopencv_highgui -lopencv_videoio 
+LDFLAGS += -lopencv_core -lopencv_imgproc -lopencv_imgcodecs -lopencv_video -lopencv_highgui -lopencv_videoio -lopencv_calib3d
 # LDFLAGS += -lopencv_plot  -lzlib 
 
 
@@ -33,8 +33,8 @@ $(wildcard src/main_exe.cpp)
 GENDIR := $(MAKEFILE_DIR)/gen/
 OBJDIR := $(GENDIR)obj/
 BINDIR := $(GENDIR)bin/
-LIBDIR := $(GENDIR)lib/
-MYFUNC_BINARY := $(BINDIR)test
+LIBDIR := $(GENDIR)lib/x86
+MYFUNC_BINARY := $(BINDIR)demo
 
 
 MYFUNC_OBJS := $(addprefix $(OBJDIR), \

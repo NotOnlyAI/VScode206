@@ -139,11 +139,11 @@ int ObjectDetect::init(int deviceTpye,int print_config,int modelType)
 
 
     if (modelType==1){ 
-        mnnPath="./models206/yolox_s_extract.mnn" ;
+        mnnPath="./models206/yolox_tiny_640_640_silu_cocobdd_extract.mnn" ;
         dimType = MNN::Tensor::CAFFE;
         in_h=640;
         in_w=640;
-        input_blob_names={"images"};
+        input_blob_names={"input0"};
         output_blob_names={"/head/Concat_output_0","/head/Concat_1_output_0","/head/Concat_2_output_0"};
         float mean[3]     = {0.0f, 0.0f, 0.0f};
         float normals[3] = {1.0f, 1.0f, 1.0f};
