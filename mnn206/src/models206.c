@@ -127,8 +127,10 @@ int M2_FaceAlignment_Init(FaceAlignment &myFaceAlignment)
        int print_config = config.ReadInt("FaceAlignment", "print", -1);
        int deviceTpye = config.ReadInt("FaceAlignment", "deviceType", 0);
        int modelType=config.ReadInt("FaceAlignment", "modelType", 0);
+       float ratio_eye=config.ReadFloat("FaceAlignment", "ratio_eye", 0.2);
+       float ratio_mouth=config.ReadFloat("FaceAlignment", "ratio_mouth", 0.6);
 
-       myFaceAlignment.init(deviceTpye,print_config,modelType);
+       myFaceAlignment.init(deviceTpye,print_config,modelType,ratio_eye,ratio_mouth);
        myFaceAlignment.model_is_ok=true;
        TFLITE_LOG_ONCE(tflite::TFLITE_LOG_INFO,"myFaceAlignment Init ok! ");
        return print_config;
@@ -241,16 +243,13 @@ int M2_Lane_Init(LaneDetect &myLaneDetect)
 
 
 
-int M2_Lane(const cv::Mat &image,int &DepartureType)
+int M2_Lane(const cv::Mat &image,std::vector<M2::lane_DECODE> &final_lane,int &LaneType)
 {
     int print_config=M2_Lane_Init(myLaneDetect);
     if(print_config>=0){TFLITE_LOG(tflite::TFLITE_LOG_INFO,"M2_LaneDetect Start! ");}
-    std::vector<M2::lane_DECODE> final_lane;
+
     myLaneDetect.ForwardBGR(image,final_lane);
-
-
-    DepartureType = myLDW.Run(final_lane, image);
-    cout<<"DepartureType: "<<DepartureType<<endl;
+    LaneType = myLDW.Run(final_lane, image);
 
     if(print_config>=0){TFLITE_LOG(tflite::TFLITE_LOG_INFO, "M2_LaneDetect End!\n");}
 
@@ -258,54 +257,15 @@ int M2_Lane(const cv::Mat &image,int &DepartureType)
 }
 
 
-int M2_DMS(const cv::Mat &image,int &DMSTpye)
+int M2_DMS(const cv::Mat &image,M2::ObjectInfo &objectinfo,M2::LandmarkInfo &landmarkinfo,int &DMSTpye)
 {
-    M2::ObjectInfo objectinfo;
-    M2_FaceDetect_ForwardBGR(image,objectinfo,0);
-    float r=1;
 
+    M2_FaceDetect_ForwardBGR(image,objectinfo,0);
+    DMSTpye=0;
     if(objectinfo.ObjectNum>=1)
     {
-        M2::LandmarkInfo landmarks;
-
-        M2_FaceAlignment_ForwardBGR(image,objectinfo.objects[0],landmarks);
-        float dx1=landmarks.landmark[60].x-landmarks.landmark[64].x;
-        float dy1=landmarks.landmark[60].y-landmarks.landmark[64].y;
-        float leye_left=sqrt(dx1*dx1+dy1*dy1);
-
-
-        float dx2=landmarks.landmark[62].x-landmarks.landmark[66].x;
-        float dy2=landmarks.landmark[62].y-landmarks.landmark[66].y;
-        float weye_left=sqrt(dx2*dx2+dy2*dy2);
-
-        float dx3=landmarks.landmark[68].x-landmarks.landmark[72].x;
-        float dy3=landmarks.landmark[68].y-landmarks.landmark[72].y;
-        float leye_right=sqrt(dx3*dx3+dy3*dy3);
-
-
-        float dx4=landmarks.landmark[70].x-landmarks.landmark[74].x;
-        float dy4=landmarks.landmark[70].y-landmarks.landmark[74].y;
-        float weye_right=sqrt(dx4*dx4+dy4*dy4);
-
-        float r_left=weye_left/leye_left;
-        float r_right=weye_right/leye_right;
-
-        r=0.5*(r_left+r_right);
-
+        M2_FaceAlignment_ForwardBGR(image,objectinfo.objects[0],landmarkinfo);
+        myFaceAlignment.DMSJudge(landmarkinfo,DMSTpye);
     }
-    
-
-    if(r<0.1)
-    {
-        DMSTpye=1;
-    }
-    else
-    {
-        DMSTpye=0;
-    }
-
-
     return 0;
-    // FR_Show_PTS(image,landmarks);
-
 }

@@ -42,10 +42,13 @@ public:
 
     int ForwardBGR(const cv::Mat &image,const M2::Object &face,M2::LandmarkInfo &landmarkinfo);
 
-    int init(int deviceTpye,int print_config,int modelType);
-    
+    int DMSJudge(const M2::LandmarkInfo &landmarkinfo,int &DMSTpye);
 
+    int init(int deviceTpye,int print_config,int modelType,float ratio_eye,float ratio_mouth);
+    
     LandmarkInfo  landmark68;
+
+    int m_DMSTpye=0;
 
     bool model_is_ok=false;
 
@@ -79,6 +82,8 @@ private:
     int image_w;
     int m_print;
     int m_modelType;
+    float m_ratio_eye;
+    float m_ratio_mouth;
 
 };
 

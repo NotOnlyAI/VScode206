@@ -17,13 +17,14 @@ FaceAlignment::FaceAlignment() {
 }
 
 
-int FaceAlignment::init(int deviceTpye,int print_config,int modelType){
+int FaceAlignment::init(int deviceTpye,int print_config,int modelType,float ratio_eye,float ratio_mouth){
 
     m_print=print_config;
     m_modelType=modelType;
+    m_ratio_eye=ratio_eye;
+    m_ratio_mouth=ratio_mouth;
+
     string mnnPath;
-
-
     mnnPath="./models206/FaceAlignment.mnn" ;
     dimType = MNN::Tensor::TENSORFLOW;
     in_h=256;
@@ -195,7 +196,6 @@ int FaceAlignment::ForwardBGR(const cv::Mat &image,const M2::Object &face,M2::La
     }
 
 
-
     if(m_print>=1){
         auto end = chrono::steady_clock::now();
         chrono::duration<double> elapsed = end - start;
@@ -205,7 +205,111 @@ int FaceAlignment::ForwardBGR(const cv::Mat &image,const M2::Object &face,M2::La
 }
 
 
+int FaceAlignment::DMSJudge(const M2::LandmarkInfo &landmarkinfo,int &DMSTpye)
+{
+    if(landmarkinfo.numPoints==98)
+    {
+        float dx1=landmarkinfo.landmark[60].x-landmarkinfo.landmark[64].x;
+        float dy1=landmarkinfo.landmark[60].y-landmarkinfo.landmark[64].y;
+        float leye_left=sqrt(dx1*dx1+dy1*dy1);
 
+
+        float dx2=landmarkinfo.landmark[62].x-landmarkinfo.landmark[66].x;
+        float dy2=landmarkinfo.landmark[62].y-landmarkinfo.landmark[66].y;
+        float weye_left=sqrt(dx2*dx2+dy2*dy2);
+
+        float dx3=landmarkinfo.landmark[68].x-landmarkinfo.landmark[72].x;
+        float dy3=landmarkinfo.landmark[68].y-landmarkinfo.landmark[72].y;
+        float leye_right=sqrt(dx3*dx3+dy3*dy3);
+
+
+        float dx4=landmarkinfo.landmark[70].x-landmarkinfo.landmark[74].x;
+        float dy4=landmarkinfo.landmark[70].y-landmarkinfo.landmark[74].y;
+        float weye_right=sqrt(dx4*dx4+dy4*dy4);
+
+        float r_left=weye_left/leye_left;
+        float r_right=weye_right/leye_right;
+
+        float ratio_eye=0.5*(r_left+r_right);
+
+
+        float dx=landmarkinfo.landmark[76].x-landmarkinfo.landmark[82].x;
+        float dy=landmarkinfo.landmark[76].y-landmarkinfo.landmark[82].y;
+        float lmouth=sqrt(dx1*dx1+dy1*dy1);
+
+
+        float dxx=landmarkinfo.landmark[78].x-landmarkinfo.landmark[85].x;
+        float dyy=landmarkinfo.landmark[78].y-landmarkinfo.landmark[85].y;
+        float wmouth=sqrt(dxx*dxx+dyy*dyy);
+
+        float ratio_mouth=wmouth/lmouth;
+
+        if(ratio_eye<m_ratio_eye||ratio_mouth>m_ratio_mouth)
+        {
+            cout<<ratio_eye<<";"<<ratio_mouth<<endl;
+            cout<<m_ratio_eye<<";"<<m_ratio_mouth<<endl;
+            DMSTpye=2;
+            m_DMSTpye=2;
+        }
+        else
+        {
+            DMSTpye=1;
+            m_DMSTpye=1;
+        }
+        return 0;
+
+    }
+
+    if(landmarkinfo.numPoints==68)
+    {
+        float dx1=landmarkinfo.landmark[37].x-landmarkinfo.landmark[40].x;
+        float dy1=landmarkinfo.landmark[37].y-landmarkinfo.landmark[40].y;
+        float leye_left=sqrt(dx1*dx1+dy1*dy1);
+
+
+        float dx2=landmarkinfo.landmark[38].x-landmarkinfo.landmark[42].x;
+        float dy2=landmarkinfo.landmark[38].y-landmarkinfo.landmark[42].y;
+        float weye_left=sqrt(dx2*dx2+dy2*dy2);
+
+        float dx3=landmarkinfo.landmark[43].x-landmarkinfo.landmark[46].x;
+        float dy3=landmarkinfo.landmark[43].y-landmarkinfo.landmark[46].y;
+        float leye_right=sqrt(dx3*dx3+dy3*dy3);
+
+
+        float dx4=landmarkinfo.landmark[44].x-landmarkinfo.landmark[48].x;
+        float dy4=landmarkinfo.landmark[44].y-landmarkinfo.landmark[48].y;
+        float weye_right=sqrt(dx4*dx4+dy4*dy4);
+
+        float r_left=weye_left/leye_left;
+        float r_right=weye_right/leye_right;
+
+        float ratio_eye=0.5*(r_left+r_right);
+
+
+        float dx=landmarkinfo.landmark[49].x-landmarkinfo.landmark[55].x;
+        float dy=landmarkinfo.landmark[49].y-landmarkinfo.landmark[55].y;
+        float lmouth=sqrt(dx1*dx1+dy1*dy1);
+
+
+        float dxx=landmarkinfo.landmark[52].x-landmarkinfo.landmark[58].x;
+        float dyy=landmarkinfo.landmark[52].y-landmarkinfo.landmark[58].y;
+        float wmouth=sqrt(dxx*dxx+dyy*dyy);
+
+        float ratio_mouth=wmouth/lmouth;
+
+        if(ratio_eye<m_ratio_eye||ratio_mouth>m_ratio_mouth)
+        {
+            DMSTpye=2;
+            m_DMSTpye=2;
+        }
+        else
+        {
+            DMSTpye=1;
+            m_DMSTpye=1;
+        }
+        return 0;
+    }
+}
 
 int FaceAlignment::decode(std::vector< MNN::Tensor*> &outputTensors_host)
 {
