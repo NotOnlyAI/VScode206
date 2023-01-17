@@ -4,26 +4,95 @@
 #define clip(x, y) (x < 0 ? 0 : (x > y ? y : x))
 
 #include "LaneDetect.hpp"
-#include "M2utils/nms.h"
 #include <opencv2/opencv.hpp>
 using namespace std;
 using namespace M2;
 
 
+static float s_af32ExpCoef[10][16] = {
+    {1.0f, 1.00024f, 1.00049f, 1.00073f, 1.00098f, 1.00122f, 1.00147f, 1.00171f, 1.00196f, 1.0022f, 1.00244f, 1.00269f, 1.00293f, 1.00318f, 1.00342f, 1.00367f},
+    {1.0f, 1.00391f, 1.00784f, 1.01179f, 1.01575f, 1.01972f, 1.02371f, 1.02772f, 1.03174f, 1.03578f, 1.03984f, 1.04391f, 1.04799f, 1.05209f, 1.05621f, 1.06034f},
+    {1.0f, 1.06449f, 1.13315f, 1.20623f, 1.28403f, 1.36684f, 1.45499f, 1.54883f, 1.64872f, 1.75505f, 1.86825f, 1.98874f, 2.117f, 2.25353f, 2.39888f, 2.55359f},
+    {1.0f, 2.71828f, 7.38906f, 20.0855f, 54.5981f, 148.413f, 403.429f, 1096.63f, 2980.96f, 8103.08f, 22026.5f, 59874.1f, 162755.0f, 442413.0f, 1.2026e+006f, 3.26902e+006f},
+    {1.0f, 8.88611e+006f, 7.8963e+013f, 7.01674e+020f, 6.23515e+027f, 5.54062e+034f, 5.54062e+034f, 5.54062e+034f, 5.54062e+034f, 5.54062e+034f, 5.54062e+034f, 5.54062e+034f, 5.54062e+034f, 5.54062e+034f, 5.54062e+034f, 5.54062e+034f},
+    {1.0f, 0.999756f, 0.999512f, 0.999268f, 0.999024f, 0.99878f, 0.998536f, 0.998292f, 0.998049f, 0.997805f, 0.997562f, 0.997318f, 0.997075f, 0.996831f, 0.996588f, 0.996345f},
+    {1.0f, 0.996101f, 0.992218f, 0.98835f, 0.984496f, 0.980658f, 0.976835f, 0.973027f, 0.969233f, 0.965455f, 0.961691f, 0.957941f, 0.954207f, 0.950487f, 0.946781f, 0.94309f},
+    {1.0f, 0.939413f, 0.882497f, 0.829029f, 0.778801f, 0.731616f, 0.687289f, 0.645649f, 0.606531f, 0.569783f, 0.535261f, 0.502832f, 0.472367f, 0.443747f, 0.416862f, 0.391606f},
+    {1.0f, 0.367879f, 0.135335f, 0.0497871f, 0.0183156f, 0.00673795f, 0.00247875f, 0.000911882f, 0.000335463f, 0.00012341f, 4.53999e-005f, 1.67017e-005f, 6.14421e-006f, 2.26033e-006f, 8.31529e-007f, 3.05902e-007f},
+    {1.0f, 1.12535e-007f, 1.26642e-014f, 1.42516e-021f, 1.60381e-028f, 1.80485e-035f, 2.03048e-042f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f}
+};
+
+static float SVP_NNIE_QuickExp( int s32Value )
+{
+    if( s32Value & 0x80000000 )
+    {
+        s32Value = ~s32Value + 0x00000001;
+        return s_af32ExpCoef[5][s32Value & 0x0000000F] * s_af32ExpCoef[6][(s32Value>>4) & 0x0000000F] * s_af32ExpCoef[7][(s32Value>>8) & 0x0000000F] * s_af32ExpCoef[8][(s32Value>>12) & 0x0000000F] * s_af32ExpCoef[9][(s32Value>>16) & 0x0000000F ];
+    }
+    else
+    {
+        return s_af32ExpCoef[0][s32Value & 0x0000000F] * s_af32ExpCoef[1][(s32Value>>4) & 0x0000000F] * s_af32ExpCoef[2][(s32Value>>8) & 0x0000000F] * s_af32ExpCoef[3][(s32Value>>12) & 0x0000000F] * s_af32ExpCoef[4][(s32Value>>16) & 0x0000000F ];
+    }
+}
+
+
+
+static int SVP_NNIE_SoftMax( float* pf32Src, uint32_t u32Num)
+{
+    float f32Max = 0;
+    float f32Sum = 0;
+    uint32_t i = 0;
+
+    for(i = 0; i < u32Num; ++i)
+    {
+        if(f32Max < pf32Src[i])
+        {
+            f32Max = pf32Src[i];
+        }
+    }
+
+    for(i = 0; i < u32Num; ++i)
+    {
+        pf32Src[i] = (float)SVP_NNIE_QuickExp((int)((pf32Src[i] - f32Max))*4096);
+        f32Sum += pf32Src[i];
+    }
+
+    for(i = 0; i < u32Num; ++i)
+    {
+        pf32Src[i] /= f32Sum;
+    }
+    return 0;
+}
+
+
+static int SVP_NNIE_SoftMaxV2( float &pf32Src1,float &pf32Src2)
+{
+    float f32Max = 0;
+    float f32Sum = 0;
+    uint32_t i = 0;
+
+    if(f32Max <  pf32Src1) f32Max =  pf32Src1;
+    if(f32Max <  pf32Src2) f32Max =  pf32Src2;
+    pf32Src1 = (float)SVP_NNIE_QuickExp((int)((pf32Src1 - f32Max))*4096);
+    pf32Src2 = (float)SVP_NNIE_QuickExp((int)((pf32Src2 - f32Max))*4096);
+    f32Sum =pf32Src1+pf32Src2;
+    pf32Src1 /= f32Sum;
+    pf32Src2 /= f32Sum;
+    return 0;
+}
+
+
 LaneDetect::LaneDetect() {
 }
 
-int LaneDetect::init(int deviceTpye,int print_config,int modelType){
+int LaneDetect::Init(int deviceTpye,int print_config,int modelType){
 
     m_print=print_config;
     m_modelType=modelType;
 
-    string mnnPath="./models206/Vega_new_extract.mnn";
-    dimType = MNN::Tensor::CAFFE;
     in_h=288;
     in_w=512;
-    input_blob_names={ "input"};
-    output_blob_names={ "287","288"};
+    dimType = MNN::Tensor::CAFFE;
     float mean[3]     = {123.675f, 116.28f, 103.53f};
     float normals[3] = {0.017125f, 0.01751f, 0.01743f};
     ::memcpy(imconfig.mean, mean, sizeof(mean));
@@ -34,22 +103,16 @@ int LaneDetect::init(int deviceTpye,int print_config,int modelType){
     pretreat=std::shared_ptr<MNN::CV::ImageProcess>(MNN::CV::ImageProcess::create(imconfig));
     MNN_PRINT("ImageProcess build, sourceFormat: %d, destFormat: %d \n",imconfig.sourceFormat,imconfig.destFormat);
 
-
-    if (modelType==0){ 
-        mnnPath="./models206/3.mnn";;
-        dimType = MNN::Tensor::CAFFE;
-        in_h=288;
-        in_w=512;
+    string mnnPath;
+    if(modelType==0){
+        mnnPath="./models206/3.mnn";
         input_blob_names={ "input"};
         output_blob_names={ "output_loc","output_cls"};
-        float mean[3]     = {123.675f, 116.28f, 103.53f};
-        float normals[3] = {0.017125f, 0.01751f, 0.01743f};
-        ::memcpy(imconfig.mean, mean, sizeof(mean));
-        ::memcpy(imconfig.normal, normals, sizeof(normals));
-        imconfig.sourceFormat = MNN::CV::BGR;
-        imconfig.destFormat = MNN::CV::BGR;
-        imconfig.filterType = MNN::CV::NEAREST;
-        pretreat=std::shared_ptr<MNN::CV::ImageProcess>(MNN::CV::ImageProcess::create(imconfig));
+    }
+    else{
+        mnnPath="./models206/Vega_96.mnn";
+        input_blob_names={ "input"};
+        output_blob_names={ "output_cls","output_loc"};
     }
 
     net = std::shared_ptr<MNN::Interpreter>(MNN::Interpreter::createFromFile(mnnPath.c_str()));
@@ -193,9 +256,9 @@ int compare_greater(cv::Point2f a, cv::Point2f b)  //vector�õ���Զ��
 
 int LaneDetect::decode(std::vector< MNN::Tensor*> &outputTensors_host)
 {
-    // for (int i = 0; i < 20; ++i) {
-    //     MNN_PRINT("func  %d %f, %f\n", i, outputTensors_host[0]->host<float>()[2*i+0], outputTensors_host[0]->host<float>()[2*i+1]);
-    // }
+    for (int i = 0; i < 20; ++i) {
+        MNN_PRINT("func  %d %f, %f\n", i, outputTensors_host[0]->host<float>()[2*i+0], outputTensors_host[0]->host<float>()[2*i+1]);
+    }
     
 
     float score0;
@@ -215,14 +278,18 @@ int LaneDetect::decode(std::vector< MNN::Tensor*> &outputTensors_host)
     {
         score0=outputTensors_host[0]->host<float>()[2*n+0];
         score1=outputTensors_host[0]->host<float>()[2*n+1];
-        SVP_NNIE_SoftMaxV2(score0,score1);
+        if(m_modelType==0)
+        {
+            SVP_NNIE_SoftMaxV2(score0,score1);
+        }
+        
         if(score1>0.6)
         {
             memcpy(down_anchor_lane, &(outputTensors_host[1]->host<float>()[145*n+0]), points_per_line  * sizeof(float));
             memcpy(up_anchor_lane, &(outputTensors_host[1]->host<float>()[145*n+72]), (points_per_line +1) * sizeof(float));
-            // for (int k = 0;k < 72; ++k) {
-            //     MNN_PRINT("func2  %d %d %f, %f ,%f\n",n, k,score1, down_anchor_lane[k], up_anchor_lane[k]);
-            // }
+            for (int k = 0;k < 72; ++k) {
+                MNN_PRINT("func2  %d %d %f, %f ,%f\n",n, k,score1, down_anchor_lane[k], up_anchor_lane[k]);
+            }
             float relative_end_pos = up_anchor_lane[0];
             int h=n/feature_w;
             int w=n%feature_w;

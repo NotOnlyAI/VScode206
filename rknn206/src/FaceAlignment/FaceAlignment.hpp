@@ -1,8 +1,8 @@
 //  Created by Linzaer on 2019/11/15.
 //  Copyright © 2019 Linzaer. All rights reserved.
 
-#ifndef LaneDetect_LA21_hpp
-#define LaneDetect_LA21_hpp
+#ifndef FaceAlignment_LA1_hpp1
+#define FaceAlignment_LA1_hpp1
 
 #pragma once
 
@@ -12,7 +12,6 @@
 #include "MNN/ImageProcess.hpp"
 
 #include "models206_typedef.h"
-
 #include <opencv2/opencv.hpp>
 #include <algorithm>
 #include <iostream>
@@ -22,44 +21,49 @@
 #include <chrono>
 
 
+
+// flip_parts = ([1, 17], [2, 16], [3, 15], [4, 14], [5, 13], [6, 12], [7, 11], [8, 10],
+//     [18, 27], [19, 26], [20, 25], [21, 24], [22, 23],
+//     [32, 36], [33, 35],
+//     [37, 46], [38, 45], [39, 44], [40, 43], [41, 48], [42, 47],
+//     [49, 55], [50, 54], [51, 53], [62, 64], [61, 65], [68, 66], [59, 57], [60, 56])
+
+
+
 using namespace M2;
 
 
-class LaneDetect {
+
+class FaceAlignment {
 public:
-    LaneDetect();
+    FaceAlignment();
 
-    ~LaneDetect();
+    ~FaceAlignment();
 
+    int ForwardBGR(const cv::Mat &image,const M2::Object &face,M2::LandmarkInfo &landmarkinfo);
+
+    int DMSJudge(const M2::LandmarkInfo &landmarkinfo,int &DMSTpye);
+
+    int init(int deviceTpye,int print_config,int modelType,float ratio_eye,float ratio_mouth);
     
-    int ForwardBGR(const cv::Mat &image,std::vector<lane_DECODE> &final_lane);
-    int Init(int deviceTpye,int print_config,int modelType);
+    LandmarkInfo  landmark68;
+
+    int m_DMSTpye=0;
+
+    bool model_is_ok=false;
 
 
-    std::vector<lane_DECODE> m_decode_lane;
-    std::vector<lane_DECODE> m_select_lane;
-    std::vector<lane_DECODE> m_final_lane_with_type;
-
-
-    
-     int model_is_ok;
 private:
 
     
+
     int decode(std::vector< MNN::Tensor*> &outputTensors_host);
-    int selected_lane(std::vector<lane_DECODE> ALL_LANE, int thresh);
-    void LeftRightGet(std::vector<lane_DECODE>& final_lane);
-    float calc_err_dis_with_pos(lane_DECODE L_1, lane_DECODE L_2);
-    
 
     std::shared_ptr<MNN::Interpreter> net;
-    std::shared_ptr<MNN::CV::ImageProcess> pretreat;
-    MNN::CV::ImageProcess::Config imconfig;
-
     MNN::Session *session = nullptr;
+    MNN::CV::ImageProcess::Config imconfig;
+    std::shared_ptr<MNN::CV::ImageProcess> pretreat;
     MNN::Tensor::DimensionType dimType = MNN::Tensor::CAFFE;
-
-
 
     std::vector< MNN::Tensor*> outputTensors;
     std::vector< MNN::Tensor*> outputTensors_host;
@@ -70,8 +74,7 @@ private:
     std::vector< MNN::Tensor*> inputTensors_host;
     std::vector<std::string> input_blob_names;
 
-    
-    
+
 
     int in_w;
     int in_h;
@@ -79,9 +82,9 @@ private:
     int image_w;
     int m_print;
     int m_modelType;
-   
-    
+    float m_ratio_eye;
+    float m_ratio_mouth;
 
 };
 
-#endif /* LaneDetect_hpp */
+#endif /* FaceAlignment_hpp */

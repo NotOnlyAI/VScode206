@@ -84,7 +84,7 @@ int M2_LaneDetect_Init(LaneDetect &myLaneDetect)
        int deviceTpye = config.ReadInt("LaneDetect", "deviceType", 0);
        int modelType=config.ReadInt("LaneDetect", "modelType", 0);
 
-       myLaneDetect.Init(deviceTpye,print_config,modelType);
+       myLaneDetect.init(deviceTpye,print_config,modelType);
        myLaneDetect.model_is_ok=true;
        TFLITE_LOG_ONCE(tflite::TFLITE_LOG_INFO,"myLaneDetect Init ok! ");
        return print_config;
@@ -223,7 +223,7 @@ int M2_Lane_Init(LaneDetect &myLaneDetect)
        int deviceTpye = config.ReadInt("LaneDetect", "deviceType", 0);
        int modelType=config.ReadInt("LaneDetect", "modelType", 0);
 
-       myLaneDetect.Init(deviceTpye,print_config,modelType);
+       myLaneDetect.init(deviceTpye,print_config,modelType);
        myLaneDetect.model_is_ok=true;
        TFLITE_LOG_ONCE(tflite::TFLITE_LOG_INFO,"myLaneDetect Init ok! ");
 

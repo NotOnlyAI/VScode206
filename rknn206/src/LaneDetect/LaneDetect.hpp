@@ -6,12 +6,13 @@
 
 #pragma once
 
-#include "MNN/Interpreter.hpp"
-#include "MNN/MNNDefine.h"
-#include "MNN/Tensor.hpp"
-#include "MNN/ImageProcess.hpp"
+
 
 #include "models206_typedef.h"
+#include "rknn_api.h"
+#include "rga.h"
+#include "RgaUtils.h"
+#include "im2d.h"
 
 #include <opencv2/opencv.hpp>
 #include <algorithm>
@@ -20,6 +21,7 @@
 #include <vector>
 #include <memory>
 #include <chrono>
+#include <sys/time.h>
 
 
 using namespace M2;
@@ -46,41 +48,30 @@ public:
 private:
 
     
-    int decode(std::vector< MNN::Tensor*> &outputTensors_host);
+    int decode();
     int selected_lane(std::vector<lane_DECODE> ALL_LANE, int thresh);
     void LeftRightGet(std::vector<lane_DECODE>& final_lane);
     float calc_err_dis_with_pos(lane_DECODE L_1, lane_DECODE L_2);
     
 
-    std::shared_ptr<MNN::Interpreter> net;
-    std::shared_ptr<MNN::CV::ImageProcess> pretreat;
-    MNN::CV::ImageProcess::Config imconfig;
-
-    MNN::Session *session = nullptr;
-    MNN::Tensor::DimensionType dimType = MNN::Tensor::CAFFE;
 
 
+    int channel = 3;
+    int width   = 0;
+    int height  = 0;
+    int img_width;
+    int img_height;
 
-    std::vector< MNN::Tensor*> outputTensors;
-    std::vector< MNN::Tensor*> outputTensors_host;
-    std::vector<std::string> output_blob_names;
 
-
-    std::vector< MNN::Tensor*> inputTensors;
-    std::vector< MNN::Tensor*> inputTensors_host;
-    std::vector<std::string> input_blob_names;
-
-    
-    
-
-    int in_w;
-    int in_h;
-    int image_h;
-    int image_w;
     int m_print;
     int m_modelType;
-   
-    
+
+    rknn_context   ctx;
+    rknn_input_output_num io_num;
+    rknn_tensor_attr input_attrs[1];
+    rknn_tensor_attr output_attrs[2];
+    rknn_input inputs[1];
+    rknn_output outputs[2];
 
 };
 
