@@ -20,5 +20,7 @@
 *.mnn
 *.o
 *.mp4
+*.wav
+*.rknn
 /instances/face_antispoof/logs/
 /mnn206/gen/bin/

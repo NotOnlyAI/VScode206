@@ -13,11 +13,11 @@ HDRDIRS	=./src ./include
 INCLUDES=$(addprefix -I,$(HDRDIRS))
 
 
-LIBDIRS	=./lib/aarch64
-LDFLAGS	=  $(addprefix -L,$(LIBDIRS)) -Wl,-z,relro,-z,noexecstack,--disable-new-dtags,-rpath,lib/:/usr/lib/:/usr/app/lib:./lib:./lib/aarch64
-LDFLAGS += -lrt -lm -ldl -lpthread -lstdc++
-LDFLAGS += -lrknnrt -lrga
-LDFLAGS += -lopencv_core -lopencv_imgproc -lopencv_imgcodecs -lopencv_video -lopencv_dnn -lopencv_calib3d -lopencv_features2d -lopencv_highgui
+ LIBDIRS	=./lib/aarch64
+ LDFLAGS	=  $(addprefix -L,$(LIBDIRS)) -Wl,-z,relro,-z,noexecstack,--disable-new-dtags,-rpath,lib/:/usr/lib/:/usr/app/lib:./lib:./lib/aarch64
+# LDFLAGS += -lrt -lm -ldl -lpthread -lstdc++
+ LDFLAGS += -lrknnrt -lrga
+# LDFLAGS += -lopencv_core -lopencv_imgproc -lopencv_imgcodecs -lopencv_video -lopencv_dnn -lopencv_calib3d -lopencv_features2d -lopencv_highgui
 # LDFLAGS += -lopencv_plot  -lzlib 
 
 
@@ -32,8 +32,10 @@ CXXFLAGS=$(CFLAGS) --std=c++11
 
 MYFUNC_SRCS := \
 $(wildcard main.cpp)\
-$(wildcard src/LaneDetect/*.cpp)\
-$(wildcard src/LaneDetect/*.c)
+$(wildcard src/WavRecognize/*.cpp)\
+$(wildcard src/WavRecognize/*.c)
+
+
 
 GENDIR := $(MAKEFILE_DIR)/gen/
 OBJDIR := $(GENDIR)obj/

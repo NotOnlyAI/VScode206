@@ -46,9 +46,13 @@ public:
 
     int init(int deviceTpye,int print_config,int modelType,float ratio_eye,float ratio_mouth);
     
-    LandmarkInfo  landmark68;
+    LandmarkInfo  m_landmarkInfo;
 
     int m_DMSTpye=0;
+
+    M2::Point2f m_left_eye;
+    M2::Point2f m_right_eye;
+
 
     bool model_is_ok=false;
 
@@ -84,6 +88,9 @@ private:
     int m_modelType;
     float m_ratio_eye;
     float m_ratio_mouth;
+
+    std::vector< M2::Point2f> left_eye_points;
+    std::vector< M2::Point2f> right_eye_points;
 
 };
 

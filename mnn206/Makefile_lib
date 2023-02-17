@@ -15,7 +15,7 @@ LIBDIRS	=./lib/x86
 LDFLAGS	=  $(addprefix -L,$(LIBDIRS)) -Wl,-z,relro,-z,noexecstack,--disable-new-dtags,-rpath,lib/:/usr/lib/:/usr/app/lib:./lib
 LDFLAGS += -lrt -lm -ldl -lpthread -lstdc++
 LDFLAGS += -lMNN -lMNN_CL
-LDFLAGS += -lopencv_core -lopencv_imgproc -lopencv_imgcodecs -lopencv_video -lopencv_highgui -lopencv_videoio
+# LDFLAGS += -lopencv_core -lopencv_imgproc -lopencv_imgcodecs -lopencv_video -lopencv_highgui -lopencv_videoio
 # LDFLAGS += -lopencv_plot  -lzlib 
 
 
@@ -38,6 +38,8 @@ $(wildcard src/LaneDetect/*.cpp)\
 $(wildcard src/LaneDetect/*.c)\
 $(wildcard src/FaceAlignment/*.cpp)\
 $(wildcard src/FaceAlignment/*.c)\
+$(wildcard src/EyeLandmarks/*.cpp)\
+$(wildcard src/EyeLandmarks/*.c)\
 $(wildcard src/ObjectDetect/*.cpp)\
 $(wildcard src/ObjectDetect/*.c)
 # $(wildcard src/PicRecognize/*.cpp)\

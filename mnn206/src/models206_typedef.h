@@ -13,7 +13,7 @@
 
 #define MAXOBJECTCOUNT		200		//����ͼ�����֧�ּ��������
 #define MAXLANDMARKNUM		5		//最大landmark�?
-#define MAXPTS		        98		//最大landmark�?
+#define MAXPTS		        500		//最大landmark�?
 
 
 using namespace std;
@@ -54,13 +54,14 @@ typedef struct Point2f
 {
 	float x;
 	float y;
+  float z=0;
 }Point2f_T;
 
 
 typedef struct LandmarkInfo
 {
-	Point2f landmark[98];
-    int numPoints;
+	Point2f landmark[MAXPTS];
+  int numPoints;
 }LandmarkInfo_T;
 
 

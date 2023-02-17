@@ -197,42 +197,15 @@ int FaceDetect::init(int deviceTpye,int print_config,int modelType)
     m_modelType=modelType;
     string mnnPath;
 
-
-    mnnPath="./models206/FaceDetect.mnn" ;
-    dimType = MNN::Tensor::TENSORFLOW;
-    in_h=320;
-    in_w=240;
-    input_blob_names={"x"};
-    output_blob_names={ "Identity","Identity_1","Identity_2","Identity_3","Identity_4","Identity_5","Identity_6","Identity_7",};
-    float mean[3]     = {104.0f, 117.0f, 123.0f};
-    float normals[3] = {1.0f, 1.0f, 1.0f};
-    ::memcpy(imconfig.mean, mean, sizeof(mean));
-    ::memcpy(imconfig.normal, normals, sizeof(normals));
-    imconfig.sourceFormat = MNN::CV::BGR;
-    imconfig.destFormat = MNN::CV::BGR;
-    imconfig.filterType = MNN::CV::NEAREST;
-    pretreat=std::shared_ptr<MNN::CV::ImageProcess>(MNN::CV::ImageProcess::create(imconfig));
-
     if (modelType==0){ 
-        mnnPath="./models206/FaceDetect.mnn" ;
-        dimType = MNN::Tensor::TENSORFLOW;
-        in_h=320;
-        in_w=240;
-        input_blob_names={"x"};
-        output_blob_names={ "Identity","Identity_1","Identity_2","Identity_3","Identity_4","Identity_5","Identity_6","Identity_7",};
-        float mean[3]     = {104.0f, 117.0f, 123.0f};
-        float normals[3] = {1.0f, 1.0f, 1.0f};
-        ::memcpy(imconfig.mean, mean, sizeof(mean));
-        ::memcpy(imconfig.normal, normals, sizeof(normals));
-        imconfig.sourceFormat = MNN::CV::BGR;
-        imconfig.destFormat = MNN::CV::BGR;
-        imconfig.filterType = MNN::CV::NEAREST;
-        pretreat=std::shared_ptr<MNN::CV::ImageProcess>(MNN::CV::ImageProcess::create(imconfig));
-    }
-
-    if (modelType==1){ 
         mnnPath="./models206/facedetect_h360_w640_c3.mnn" ;
         dimType = MNN::Tensor::CAFFE;
+
+        MNN_PRINT("\n");
+        MNN_PRINT("modelType=0 (facedetect model : my slim model) \n");
+        MNN_PRINT("Interpreter build, model_path: %s, dimType:%d\n",mnnPath.c_str(),dimType);
+        MNN_PRINT("\n");
+
         in_h=360;
         in_w=640;
         input_blob_names={"input0"};
@@ -246,6 +219,34 @@ int FaceDetect::init(int deviceTpye,int print_config,int modelType)
         imconfig.filterType = MNN::CV::NEAREST;
         pretreat=std::shared_ptr<MNN::CV::ImageProcess>(MNN::CV::ImageProcess::create(imconfig));
     }
+    else if(modelType==1)
+    {
+        mnnPath="./models206/facedetect_h640_w320_c3.mnn" ;
+        dimType = MNN::Tensor::CAFFE;
+
+        MNN_PRINT("\n");
+        MNN_PRINT("modelType=0 (facedetect model : my slim model) \n");
+        MNN_PRINT("Interpreter build, model_path: %s, dimType:%d\n",mnnPath.c_str(),dimType);
+        MNN_PRINT("\n");
+
+        in_h=640;
+        in_w=320;
+        input_blob_names={"input0"};
+        output_blob_names={ "conf0","conf1","conf2","conf3","loc0","loc1","loc2","loc3",};
+        float mean[3]     = {104.0f, 117.0f, 123.0f};
+        float normals[3] = {1.0f, 1.0f, 1.0f};
+        ::memcpy(imconfig.mean, mean, sizeof(mean));
+        ::memcpy(imconfig.normal, normals, sizeof(normals));
+        imconfig.sourceFormat = MNN::CV::BGR;
+        imconfig.destFormat = MNN::CV::BGR;
+        imconfig.filterType = MNN::CV::NEAREST;
+        pretreat=std::shared_ptr<MNN::CV::ImageProcess>(MNN::CV::ImageProcess::create(imconfig));
+    }
+    else{
+        MNN_PRINT(" wrong modelType %d,should be 0 or 1  \n",modelType);
+        MNN_PRINT("\n");
+    }
+
 
 
     net = std::shared_ptr<MNN::Interpreter>(MNN::Interpreter::createFromFile(mnnPath.c_str()));
@@ -399,10 +400,6 @@ int FaceDetect::decode(std::vector< MNN::Tensor*> &outputTensors_host)
     //     MNN_PRINT("func %f, %f\n", outputTensors_host[0]->host<float>()[2*i+0], outputTensors_host[0]->host<float>()[2*i+0]);
     // }
 
-
-    float box[3000][5];
-    float landmark[3000][10];
-
     std::vector<int> indexes = {};
     std::vector<float*> vec_boxs = {};
     std::vector<float*> vec_landmarks = {};
@@ -537,40 +534,6 @@ int FaceDetect::decode(std::vector< MNN::Tensor*> &outputTensors_host)
     return 0;
 
 }
-
-
-
-// int FaceDetect::visImg(const M2::ImgData_T &imagedata,const M2::DetectResult &rectinfo)
-// {
-    
-
-//     cv::Mat ori_image(cv::Size(imagedata.width, imagedata.height), CV_8UC3);
-// 	ori_image.data =imagedata.data;
-
-//     cv::Mat image=ori_image.clone();
-    
-
-//     for(int i=0;i<rectinfo.nNum;i++)
-//     {
-//         std::string text =std::to_string(rectinfo.labels[i].score);
-//         int font_face = cv::FONT_HERSHEY_COMPLEX;
-//         double font_scale = 1;
-//         int thickness = 1;
-//     //    int baseline;
-//     //    cv::Size text_size = cv::getTextSize(text, font_face, font_scale, thickness, &baseline);
-//         // 将文本框居中绘制
-//         cv::Point origin;
-//         origin.x = rectinfo.boxes[i].xmin+20;
-//         origin.y = rectinfo.boxes[i].ymin+20;
-//         cv::putText(image, text, origin, font_face, font_scale, cv::Scalar(0, 255, 255), thickness, 8, 0);
-
-//         cv::Rect r = cv::Rect(rectinfo.boxes[i].xmin, rectinfo.boxes[i].ymin, rectinfo.boxes[i].width, rectinfo.boxes[i].height);
-//         cv::rectangle(image, r, cv::Scalar(255, 0, 0), 1, 8, 0);
-//     }
-//     cv::imshow("1",image);
-//     cv::waitKey(0);
-//     return 0;
-// }
 
 
 FaceDetect::~FaceDetect() {

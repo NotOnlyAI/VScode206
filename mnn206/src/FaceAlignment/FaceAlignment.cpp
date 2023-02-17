@@ -21,34 +21,20 @@ int FaceAlignment::init(int deviceTpye,int print_config,int modelType,float rati
 
     m_print=print_config;
     m_modelType=modelType;
+    string mnnPath;
+
     m_ratio_eye=ratio_eye;
     m_ratio_mouth=ratio_mouth;
 
-    string mnnPath;
-    mnnPath="./models206/FaceAlignment.mnn" ;
-    dimType = MNN::Tensor::TENSORFLOW;
-    in_h=256;
-    in_w=256;
-    input_blob_names={"input_1"};
-    output_blob_names={"Identity"};
-    float mean[3]     = {127.5f, 127.5f, 127.5f};
-    float normals[3] = {0.007843f, 0.007843f, 0.007843f};
-    ::memcpy(imconfig.mean, mean, sizeof(mean));
-    ::memcpy(imconfig.normal, normals, sizeof(normals));
-    imconfig.sourceFormat = MNN::CV::BGR;
-    imconfig.destFormat = MNN::CV::RGB;
-    imconfig.filterType = MNN::CV::NEAREST;
-    pretreat=std::shared_ptr<MNN::CV::ImageProcess>(MNN::CV::ImageProcess::create(imconfig));
-
     if (modelType==0){ 
-        mnnPath="./models206/FaceAlignment.mnn";;
-        dimType = MNN::Tensor::TENSORFLOW;
-        in_h=256;
-        in_w=256;
+        mnnPath="./models206/face_landmark.mnn";;
+        dimType = MNN::Tensor::CAFFE;
+        in_h=192;
+        in_w=192;
         input_blob_names={"input_1"};
-        output_blob_names={"Identity"};
-        float mean[3]     = {127.5f, 127.5f, 127.5f};
-        float normals[3] = {0.007843f, 0.007843f, 0.007843f};
+        output_blob_names={"conv2d_20","conv2d_30"};
+        float mean[3]     = {0.0f, 0.0f, 0.0f};
+        float normals[3] = {0.0039215686274509803921568627451f, 0.0039215686274509803921568627451f, 0.0039215686274509803921568627451f};
         ::memcpy(imconfig.mean, mean, sizeof(mean));
         ::memcpy(imconfig.normal, normals, sizeof(normals));
         imconfig.sourceFormat = MNN::CV::BGR;
@@ -56,8 +42,8 @@ int FaceAlignment::init(int deviceTpye,int print_config,int modelType,float rati
         imconfig.filterType = MNN::CV::NEAREST;
         pretreat=std::shared_ptr<MNN::CV::ImageProcess>(MNN::CV::ImageProcess::create(imconfig));
     }
-
-    if (modelType==1){ 
+    else if (modelType==1)
+    {
         mnnPath="./models206/FaceAlignment_pfld.mnn";;
         dimType = MNN::Tensor::CAFFE;
         in_h=96;
@@ -73,8 +59,29 @@ int FaceAlignment::init(int deviceTpye,int print_config,int modelType,float rati
         imconfig.filterType = MNN::CV::NEAREST;
         pretreat=std::shared_ptr<MNN::CV::ImageProcess>(MNN::CV::ImageProcess::create(imconfig));
     }
+    else{
+                MNN_PRINT(" wrong modelType %d,should be 0 or 1  \n",modelType);
+        MNN_PRINT("\n");
+    }
 
-   
+    
+    // if (modelType==1){ 
+    //     mnnPath="./models206/2d106det.mnn" ;
+    //     dimType = MNN::Tensor::CAFFE;
+    //     in_h=192;
+    //     in_w=192;
+    //     input_blob_names={"data"};
+    //     output_blob_names={"fc1"};
+    //     float mean[3]     = {0.0f, 0.0f, 0.0f};
+    //     float normals[3] = {1.0f,1.0f, 1.0f};
+    //     ::memcpy(imconfig.mean, mean, sizeof(mean));
+    //     ::memcpy(imconfig.normal, normals, sizeof(normals));
+    //     imconfig.sourceFormat = MNN::CV::BGR;
+    //     imconfig.destFormat =MNN::CV::BGR;
+    //     imconfig.filterType = MNN::CV::NEAREST;
+    //     pretreat=std::shared_ptr<MNN::CV::ImageProcess>(MNN::CV::ImageProcess::create(imconfig));
+    // }
+
 
    
 
@@ -90,15 +97,25 @@ int FaceAlignment::init(int deviceTpye,int print_config,int modelType,float rati
     session = net->createSession(config);
     MNN_PRINT("Interpreter build, model_path: %s, dimType:%d\n",mnnPath.c_str(),dimType);
 
+
+
   
     inputTensors.resize(input_blob_names.size());
     inputTensors_host.resize(input_blob_names.size());
     for (int i = 0; i < input_blob_names.size(); i++) {
 		inputTensors[i] = net->getSessionInput(session,input_blob_names[0].c_str());
 	}
+
+    auto shape = inputTensors[0]->shape();
+    shape[0]=1;
+    net->resizeTensor(inputTensors[0] , shape);
+    net->resizeSession(session);
+
     for (int i = 0; i < input_blob_names.size(); i++) {
 		inputTensors_host[i] = new MNN::Tensor(inputTensors[i], dimType);
 	}
+
+
  
     outputTensors.resize(output_blob_names.size());
     outputTensors_host.resize(output_blob_names.size());
@@ -149,18 +166,27 @@ int FaceAlignment::ForwardBGR(const cv::Mat &image,const M2::Object &face,M2::La
     double dh=min(newy2-(face.rect.y+face.rect.height),face.rect.y-newy1);
     double dd=min(dw,dh);
 
+
     cv::Rect rect_new;
     rect_new.x=int(face.rect.x-dd);
     rect_new.y=int(face.rect.y-dd);
     rect_new.width=int(face.rect.width+2*dd);
     rect_new.height=int(face.rect.height+2*dd);
 
+    // cv::Rect rect_new;
+    // rect_new.x=int(face.rect.x);
+    // rect_new.y=int(face.rect.y);
+    // rect_new.width=int(face.rect.width);
+    // rect_new.height=int(face.rect.height);
+
     image_h = rect_new.height;
     image_w = rect_new.width;
 
 
+
     cv::Mat crop_image=image(rect_new);
-    // cv::imshow("crop",crop_image);
+    // cv::imwrite("crop1.jpg",crop_image);
+    // exit(0);
     // cv::waitKey(0);
 
     cv::Mat resize_img;
@@ -188,12 +214,19 @@ int FaceAlignment::ForwardBGR(const cv::Mat &image,const M2::Object &face,M2::La
     decode(outputTensors_host);
 
 
-    landmarkinfo.numPoints= landmark68.numPoints;
-    for (int i = 0; i < landmarkinfo.numPoints; ++i) {
-        landmarkinfo.landmark[i].x= landmark68.landmark[i].x+rect_new.x;
-        landmarkinfo.landmark[i].y= landmark68.landmark[i].y+rect_new.y;
+    landmarkinfo.numPoints= m_landmarkInfo.numPoints;
+    cout<<m_landmarkInfo.numPoints<<endl;
+    cout<<landmarkinfo.numPoints<<endl;
+    for (int i = 0; i < landmarkinfo.numPoints;i++) {
+        landmarkinfo.landmark[i].x= m_landmarkInfo.landmark[i].x+rect_new.x;
+        landmarkinfo.landmark[i].y= m_landmarkInfo.landmark[i].y+rect_new.y;
         // MNN_PRINT("i=%d  %f, %f\n", i,landmarkinfo.landmark[i].x, landmarkinfo.landmark[i].y);
     }
+
+    // m_left_eye.x=( landmarkinfo.landmark[33].x+landmarkinfo.landmark[133].x)/2.0;
+    // m_left_eye.y=(landmarkinfo.landmark[33].y+landmarkinfo.landmark[133].y)/2.0;
+    // m_right_eye.x=( landmarkinfo.landmark[362].x+landmarkinfo.landmark[263].x)/2.0;
+    // m_right_eye.y=(landmarkinfo.landmark[362].y+landmarkinfo.landmark[263].y)/2.0;
 
 
     if(m_print>=1){
@@ -207,6 +240,60 @@ int FaceAlignment::ForwardBGR(const cv::Mat &image,const M2::Object &face,M2::La
 
 int FaceAlignment::DMSJudge(const M2::LandmarkInfo &landmarkinfo,int &DMSTpye)
 {
+    if(m_modelType==0)
+    {
+        
+        float dx1=landmarkinfo.landmark[33].x-landmarkinfo.landmark[133].x;
+        float dy1=landmarkinfo.landmark[33].y-landmarkinfo.landmark[133].y;
+        float leye_left=sqrt(dx1*dx1+dy1*dy1);  
+
+        float dx2=landmarkinfo.landmark[159].x-landmarkinfo.landmark[145].x;
+        float dy2=landmarkinfo.landmark[159].y-landmarkinfo.landmark[145].y;
+        float weye_left=sqrt(dx2*dx2+dy2*dy2);
+
+        float dx3=landmarkinfo.landmark[362].x-landmarkinfo.landmark[263].x;
+        float dy3=landmarkinfo.landmark[362].y-landmarkinfo.landmark[263].y;
+        float leye_right=sqrt(dx3*dx3+dy3*dy3);
+
+        float dx4=landmarkinfo.landmark[386].x-landmarkinfo.landmark[374].x;
+        float dy4=landmarkinfo.landmark[386].y-landmarkinfo.landmark[374].y;
+        float weye_right=sqrt(dx4*dx4+dy4*dy4);
+
+        float r_left=weye_left/leye_left;
+        float r_right=weye_right/leye_right;
+
+        float ratio_eye=0.5*(r_left+r_right);
+
+        float dx=landmarkinfo.landmark[78].x-landmarkinfo.landmark[308].x;
+        float dy=landmarkinfo.landmark[78].y-landmarkinfo.landmark[308].y;
+        float lmouth=sqrt(dx1*dx1+dy1*dy1);
+
+
+        float dxx=landmarkinfo.landmark[13].x-landmarkinfo.landmark[14].x;
+        float dyy=landmarkinfo.landmark[13].y-landmarkinfo.landmark[14].y;
+        float wmouth=sqrt(dxx*dxx+dyy*dyy);
+
+        float ratio_mouth=wmouth/lmouth;
+
+        if(ratio_eye<m_ratio_eye||ratio_mouth>m_ratio_mouth)
+        {
+            cout<<ratio_eye<<";"<<ratio_mouth<<endl;
+            cout<<m_ratio_eye<<";"<<m_ratio_mouth<<endl;
+            DMSTpye=2;
+            m_DMSTpye=2;
+        }
+        else
+        {
+            DMSTpye=1;
+            m_DMSTpye=1;
+        }
+        return 0;
+    }
+
+    
+
+
+
     if(landmarkinfo.numPoints==98)
     {
         float dx1=landmarkinfo.landmark[60].x-landmarkinfo.landmark[64].x;
@@ -316,26 +403,80 @@ int FaceAlignment::decode(std::vector< MNN::Tensor*> &outputTensors_host)
     // for (int i = 0; i < 10; ++i) {
     //     MNN_PRINT("func %f, %f\n", outputTensors_host[0]->host<float>()[2*i+0], outputTensors_host[0]->host<float>()[2*i+0]);
     // }
-    if (m_modelType==0)
+
+
+    if(m_modelType==0)
     {
-        for (int i = 0; i < 68; ++i) {
-            landmark68.landmark[i].x= (outputTensors_host[0]->host<float>()[2*i+0]+1)*0.5*image_w;
-            landmark68.landmark[i].y= (outputTensors_host[0]->host<float>()[2*i+1]+1)*0.5*image_h;
-            //     MNN_PRINT("func %f, %f\n", outputTensors_host[0]->host<float>()[2*i+0], outputTensors_host[0]->host<float>()[2*i+0]);
+
+        for (int i = 0; i < 468; ++i) {
+            m_landmarkInfo.landmark[i].x= outputTensors_host[0]->host<float>()[3*i+0]/float(in_w)*float(image_w);
+            m_landmarkInfo.landmark[i].y= outputTensors_host[0]->host<float>()[3*i+1]/float(in_h)*float(image_h);
+            // MNN_PRINT("func %f, %f\n", m_landmarkInfo.landmark[i].x, m_landmarkInfo.landmark[i].y);
         }
-        landmark68.numPoints=68;
+        m_landmarkInfo.numPoints=468;
+
+
+        
+        return 0;
     }
+
+    // if(m_modelType==1)
+    // {
+    //     for (int i = 0; i < 106; ++i) {
+    //         m_landmarkInfo.landmark[i].x= (outputTensors_host[0]->host<float>()[2*i+0]+1)*0.5*image_w;
+    //         m_landmarkInfo.landmark[i].y= (outputTensors_host[0]->host<float>()[2*i+1]+1)*0.5*image_h;
+    //         MNN_PRINT("func %f, %f\n", m_landmarkInfo.landmark[i].x, m_landmarkInfo.landmark[i].y);
+    //     }
+    //     m_landmarkInfo.numPoints=106;
+
+
+    //     // left_eye_points.clear();
+    //     // right_eye_points.clear();
+
+    //     // for (int i = 0; i < 468; ++i) {
+    //     //     if(i==33||i==159||i==133||i==145)
+    //     //     {
+    //     //         M2::Point2f p;
+    //     //         p.x=outputTensors_host[0]->host<float>()[3*i];
+    //     //         p.y=outputTensors_host[0]->host<float>()[3*i+1];
+    //     //         p.z=outputTensors_host[0]->host<float>()[3*i+2];
+    //     //         left_eye_points.push_back(p);
+    //     //     }
+    //     //     if(i==362||i==386||i==263||i=374)
+    //     //     {
+    //     //         M2::Point2f p;
+    //     //         p.x=outputTensors_host[0]->host<float>()[3*i];
+    //     //         p.y=outputTensors_host[0]->host<float>()[3*i+1];
+    //     //         p.z=outputTensors_host[0]->host<float>()[3*i+2];
+    //     //         right_eye_points.push_back(p);
+    //     //     }
+    //     // }
+    //     return 0;
+    // }
+
+
+
+    // if (m_modelType==1)
+    // {
+    //     for (int i = 0; i < 68; ++i) {
+    //         m_landmarkInfo.landmark[i].x= (outputTensors_host[0]->host<float>()[2*i+0]+1)*0.5*image_w;
+    //         m_landmarkInfo.landmark[i].y= (outputTensors_host[0]->host<float>()[2*i+1]+1)*0.5*image_h;
+    //         //     MNN_PRINT("func %f, %f\n", outputTensors_host[0]->host<float>()[2*i+0], outputTensors_host[0]->host<float>()[2*i+0]);
+    //     }
+    //     m_landmarkInfo.numPoints=68;
+    //     return 0;
+    // }
 
     if (m_modelType==1)
     {
         float scale_x = static_cast<float>(image_w) / in_w;
         float scale_y = static_cast<float>(image_h) / in_h;
         for (int i = 0; i < 98; ++i) {
-            landmark68.landmark[i].x= (outputTensors_host[0]->host<float>()[2*i+0])*scale_x;
-            landmark68.landmark[i].y= (outputTensors_host[0]->host<float>()[2*i+1])*scale_y;
+            m_landmarkInfo.landmark[i].x= (outputTensors_host[0]->host<float>()[2*i+0])*scale_x;
+            m_landmarkInfo.landmark[i].y= (outputTensors_host[0]->host<float>()[2*i+1])*scale_y;
                 // MNN_PRINT("func %f, %f\n", outputTensors_host[0]->host<float>()[2*i+0], outputTensors_host[0]->host<float>()[2*i+0]);
         }
-        landmark68.numPoints=98;
+        m_landmarkInfo.numPoints=98;
     }
 
 

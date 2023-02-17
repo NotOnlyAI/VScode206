@@ -12,6 +12,7 @@
 #include "LaneDetect/LDW.h"
 #include "FaceAlignment/FaceAlignment.hpp"
 #include "ObjectDetect/ObjectDetect.hpp"
+#include "EyeLandmarks/EyeLandmarks.h"
 
 using namespace std;
 
@@ -22,6 +23,7 @@ bool logfile_ok;
 FaceDetect myFaceDetect;
 LaneDetect myLaneDetect;
 FaceAlignment myFaceAlignment;
+EyeLandmarks myEyeLandmarks;
 ObjectDetect myObjectDetect;
 LDW myLDW;
 
@@ -243,6 +245,50 @@ int M2_Lane_Init(LaneDetect &myLaneDetect)
 
 
 
+
+
+
+
+int M2_EyeLandmarks_Init(EyeLandmarks &myEyeLandmarks)
+{
+   if(!myEyeLandmarks.model_is_ok)
+   {
+       // if(!logfile_ok) M2_Log_Init();
+       fd::RrConfig config;
+	    config.ReadConfig("./models206/config.ini");
+       int print_config = config.ReadInt("EyeLandmarks", "print", -1);
+       int deviceTpye = config.ReadInt("EyeLandmarks", "deviceType", 0);
+       int modelType=config.ReadInt("EyeLandmarks", "modelType", 0);
+       float ratio_eye=config.ReadFloat("EyeLandmarks", "ratio_eye", 0.2);
+       float ratio_mouth=config.ReadFloat("EyeLandmarks", "ratio_mouth", 0.6);
+
+       myEyeLandmarks.init(deviceTpye,print_config,modelType,ratio_eye,ratio_mouth);
+       myEyeLandmarks.model_is_ok=true;
+       TFLITE_LOG_ONCE(tflite::TFLITE_LOG_INFO,"myEyeLandmarks Init ok! ");
+       return print_config;
+
+   }else{
+       fd::RrConfig config;
+	    config.ReadConfig("./models206/config.ini");
+       int print_config = config.ReadInt("EyeLandmarks", "print", -1);
+       TFLITE_LOG_ONCE(tflite::TFLITE_LOG_INFO,"myEyeLandmarks is Already Init");
+       return print_config;
+   }
+}
+
+
+int M2_EyeLandmarks_ForwardBGR(const cv::Mat &image,const M2::Point2f &left_eye,const M2::Point2f &right_eye,M2::LandmarkInfo &landmarkinfo)
+{
+
+   int print_config=M2_EyeLandmarks_Init(myEyeLandmarks);
+   if(print_config>=0){TFLITE_LOG(tflite::TFLITE_LOG_INFO,"M2_EyeLandmarks Start! ");}
+
+   myEyeLandmarks.ForwardBGR(image,left_eye,right_eye,landmarkinfo);
+
+   if(print_config>=0){TFLITE_LOG(tflite::TFLITE_LOG_INFO, "M2_EyeLandmarks End!\n");}
+
+}
+
 int M2_Lane(const cv::Mat &image,std::vector<M2::lane_DECODE> &final_lane,int &LaneType)
 {
     int print_config=M2_Lane_Init(myLaneDetect);
@@ -266,6 +312,7 @@ int M2_DMS(const cv::Mat &image,M2::ObjectInfo &objectinfo,M2::LandmarkInfo &lan
     {
         M2_FaceAlignment_ForwardBGR(image,objectinfo.objects[0],landmarkinfo);
         myFaceAlignment.DMSJudge(landmarkinfo,DMSTpye);
+        // M2_EyeLandmarks_ForwardBGR(image,myFaceAlignment.m_left_eye,myFaceAlignment.m_right_eye,landmarkinfo);
     }
     return 0;
 }

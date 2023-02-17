@@ -206,7 +206,7 @@ int DMS_demo()
     int ex = static_cast<int>(cap.get(cv::CAP_PROP_FOURCC));
     char EXT[] = { (char)(ex & 0XFF),(char)((ex & 0XFF00) >> 8),(char)((ex & 0XFF0000) >> 16),(char)((ex & 0XFF000000) >> 24),0 };
     cv::VideoWriter wri;
-    wri.open("1_DMS.avi", ex, frameRate, cv::Size(width, height));
+    wri.open("1_DMS.mp4", ex, frameRate, cv::Size(width, height));
     if(!wri.isOpened())
     {
         cout<<"video writer failed!"<<endl;
@@ -220,12 +220,14 @@ int DMS_demo()
     double inferenceTime = 0.0;
     int n_frame=0;
 
+
     while (1) {
+        // cv::Mat frame=cv::imread("1.jpg");
         cap >> frame;
         if (frame.empty())
             break;
-        if (n_frame>300)
-            break;
+        // if (n_frame>100)
+        //     break;
         double t1 = static_cast<double>(cv::getTickCount());
 
         int DMSType;
@@ -233,7 +235,6 @@ int DMS_demo()
         M2::ObjectInfo objectinfo;
         M2_DMS(frame,objectinfo,landmarkinfo,DMSType);
         
-
         n_frame++;
         cout<<"n_frame:"<<n_frame<<endl;
         if(n_frame<10) continue;
@@ -273,13 +274,14 @@ int DMS_demo()
 
             for(int i=0;i<landmarkinfo.numPoints;i++)
             {
-                // cout<<i<<": "<<landmarkinfo.landmark[i].x<<landmarkinfo.landmark[i].y<<endl;
+                // cout<<i<<": "<<landmarkinfo.landmark[i].x<<","<<landmarkinfo.landmark[i].y<<endl;
                 cv::Point p1(landmarkinfo.landmark[i].x ,landmarkinfo.landmark[i].y);
                 cv::circle(frame, p1, 1, cv::Scalar(0, 255, 0), -1); 
             }
         }
 
-
+        // cv::imshow("dd",frame);
+        // cv::waitKey(0);
         wri << frame;
         cout<<"DMSType:"<<DMSType<<endl;
     } 
@@ -290,11 +292,12 @@ int DMS_demo()
 
 
 
+
 int main(int argc, char *argv[])
 {
     
-    Lane_demo();
-    // DMS_demo();
+    // Lane_demo();
+    DMS_demo();
 
     return 0;
 }

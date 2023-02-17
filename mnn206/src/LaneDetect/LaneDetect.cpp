@@ -287,9 +287,9 @@ int LaneDetect::decode(std::vector< MNN::Tensor*> &outputTensors_host)
         {
             memcpy(down_anchor_lane, &(outputTensors_host[1]->host<float>()[145*n+0]), points_per_line  * sizeof(float));
             memcpy(up_anchor_lane, &(outputTensors_host[1]->host<float>()[145*n+72]), (points_per_line +1) * sizeof(float));
-            for (int k = 0;k < 72; ++k) {
-                MNN_PRINT("func2  %d %d %f, %f ,%f\n",n, k,score1, down_anchor_lane[k], up_anchor_lane[k]);
-            }
+            // for (int k = 0;k < 72; ++k) {
+            //     MNN_PRINT("func2  %d %d %f, %f ,%f\n",n, k,score1, down_anchor_lane[k], up_anchor_lane[k]);
+            // }
             float relative_end_pos = up_anchor_lane[0];
             int h=n/feature_w;
             int w=n%feature_w;

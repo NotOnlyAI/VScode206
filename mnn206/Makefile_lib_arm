@@ -15,8 +15,8 @@ LIBDIRS	=./lib/aarch64
 LDFLAGS	=  $(addprefix -L,$(LIBDIRS)) -Wl,-z,relro,-z,noexecstack,--disable-new-dtags,-rpath,lib/:/usr/lib/:/usr/app/lib:./lib:./lib/aarch64
 LDFLAGS += -lrt -lm -ldl -lpthread -lstdc++
 LDFLAGS += -lMNN
-LDFLAGS += -lopencv_core -lopencv_imgproc -lopencv_imgcodecs -lopencv_video -lopencv_highgui -lopencv_videoio
-# LDFLAGS += -lopencv_plot  -lzlib 
+LDFLAGS += -lopencv_core -lopencv_imgproc -lopencv_imgcodecs -lopencv_video  -lopencv_videoio  -lopencv_highgui
+# LDFLAGS += -lopencv_plot  -lzlib   -lopencv_video  -lopencv_videoio  -lopencv_highgui
 
 
 CFLAGS =-g -Wall -O0 -shared -fPIC 

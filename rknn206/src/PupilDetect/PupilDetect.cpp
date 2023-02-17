@@ -3,7 +3,7 @@
 
 #define clip(x, y) (x < 0 ? 0 : (x > y ? y : x))
 
-#include "LaneDetect.hpp"
+#include "PupilDetect.hpp"
 #include "M2utils/nms.h"
 #include <opencv2/opencv.hpp>
 using namespace std;
@@ -73,22 +73,22 @@ static unsigned char* load_model(const char* filename, int* model_size)
 
 static double __get_us(struct timeval t) { return (t.tv_sec * 1000000 + t.tv_usec); }
 
-bool LessSort(lane_DECODE a, lane_DECODE b)  //����
+static bool LessSort(lane_DECODE a, lane_DECODE b)  //����
 {
     return (a.prob > b.prob);
 }
 
-bool LessSort_point(cv::Point a, cv::Point b) //����
+static bool LessSort_point(cv::Point a, cv::Point b) //����
 {
     return (a.y > b.y);
 }
 // �������ߵľ�������
-bool moreSort(lane_DECODE a, lane_DECODE b) //����
+static bool moreSort(lane_DECODE a, lane_DECODE b) //����
 {
     return (a.dis < b.dis);
 }
 
-int compare_greater(cv::Point2f a, cv::Point2f b)  //vector�õ���Զ������ĵ�
+static int compare_greater(cv::Point2f a, cv::Point2f b)  //vector�õ���Զ������ĵ�
 {
     return a.x > b.x;
 }
@@ -101,17 +101,17 @@ int compare_greater(cv::Point2f a, cv::Point2f b)  //vector�õ���Զ��
 
 
 
-LaneDetect::LaneDetect() {
+PupilDetect::PupilDetect() {
 
 
 }
 
-int LaneDetect::Init(int deviceTpye,int print_config,int modelType){
+int PupilDetect::Init(int deviceTpye,int print_config,int modelType){
 
     m_print=print_config;
     m_modelType=modelType;
 
-    string model_name="./models206/Vega96.rknn";
+    string model_name="./models206/ellseg.rknn";
     /* Create the neural network */
     printf("Loading mode...\n");
     int            model_data_size = 0;
@@ -178,7 +178,7 @@ int LaneDetect::Init(int deviceTpye,int print_config,int modelType){
 
 }
 
-int LaneDetect::ForwardBGR(const cv::Mat &img,std::vector<M2::lane_DECODE> &final_lane) {
+int PupilDetect::ForwardBGR(const cv::Mat &img,std::vector<M2::lane_DECODE> &final_lane) {
 
     struct timeval start_time, stop_time;
 
@@ -191,6 +191,7 @@ int LaneDetect::ForwardBGR(const cv::Mat &img,std::vector<M2::lane_DECODE> &fina
     memset(&src, 0, sizeof(src));
     memset(&dst, 0, sizeof(dst));
     int ret;
+
 
 
 
@@ -231,27 +232,40 @@ int LaneDetect::ForwardBGR(const cv::Mat &img,std::vector<M2::lane_DECODE> &fina
     ret = rknn_run(ctx, NULL);
     ret = rknn_outputs_get(ctx, io_num.n_output, outputs, NULL);
     gettimeofday(&stop_time, NULL);
-    
 
-    decode();
-    selected_lane(m_decode_lane,200);
-    LeftRightGet(m_select_lane);
-
-    for (int i = 0; i < m_final_lane_with_type.size(); i++){
-        final_lane.push_back(m_final_lane_with_type[i]);
+    for(int i=0;i<20;i++)
+    {
+        printf("func  %d %f, %f ,%f\n", i, ((float*)outputs[0].buf)[3*i+0], ((float*)outputs[0].buf)[3*i+1], ((float*)outputs[0].buf)[3*i+2]);
     }
+    
+    // for(int i=0;i<21;i++)
+    // {
+    //             // cout<<i<<": "<<landmarkinfo.landmark[i].x<<landmarkinfo.landmark[i].y<<endl;
+    //     cv::Point p1(((float*)outputs[0].buf)[3*i+0]/224.0*640,((float*)outputs[0].buf)[3*i+1]/224.0*480);
+    //     cv::circle(img, p1, 1, cv::Scalar(0, 255, 0), -1); 
+    // }
+    // cv::imshow("11",img);
+    // cv::waitKey(0);
 
-    m_decode_lane.clear();
-    m_select_lane.clear();
-    m_final_lane_with_type.clear();
+    // decode();
+    // selected_lane(m_decode_lane,200);
+    // LeftRightGet(m_select_lane);
 
-   printf("once run use %f ms\n", (__get_us(stop_time) - __get_us(start_time)) / 1000);
+    // for (int i = 0; i < m_final_lane_with_type.size(); i++){
+    //     final_lane.push_back(m_final_lane_with_type[i]);
+    // }
+
+    // m_decode_lane.clear();
+    // m_select_lane.clear();
+    // m_final_lane_with_type.clear();
+
+    printf("once run use %f ms\n", (__get_us(stop_time) - __get_us(start_time)) / 1000);
 
     return 0;
 }
 
 
-int LaneDetect::decode()
+int PupilDetect::decode()
 {
     // for (int i = 0; i < 20; ++i) {
     //     MNN_PRINT("func  %d %f, %f\n", i, outputTensors_host[0]->host<float>()[2*i+0], outputTensors_host[0]->host<float>()[2*i+1]);
@@ -349,7 +363,7 @@ int LaneDetect::decode()
 
 
 
-float LaneDetect::calc_err_dis_with_pos(lane_DECODE L_1, lane_DECODE L_2) // ���������ߵľ���
+float PupilDetect::calc_err_dis_with_pos(lane_DECODE L_1, lane_DECODE L_2) // ���������ߵľ���
 {
     int max_start_pos = max(L_1.start_pos, L_2.start_pos);
     int min_end_pos = min(L_1.end_pos, L_2.end_pos);
@@ -371,7 +385,7 @@ float LaneDetect::calc_err_dis_with_pos(lane_DECODE L_1, lane_DECODE L_2) // �
     return dis;
 }
 
-int LaneDetect::selected_lane(std::vector<lane_DECODE> ALL_LANE, int thresh)
+int PupilDetect::selected_lane(std::vector<lane_DECODE> ALL_LANE, int thresh)
 {
     // std::vector<lane_DECODE> save_LANE = {};
     sort(ALL_LANE.begin(), ALL_LANE.end(), LessSort);
@@ -402,61 +416,9 @@ int LaneDetect::selected_lane(std::vector<lane_DECODE> ALL_LANE, int thresh)
     return 0;
 }
 
-void LaneDetect::LeftRightGet(std::vector<lane_DECODE>& final_lane)
-{
-    float sx1 = float(img_width) / float(width);
-    float sy1 = float(img_height) / float(height);
-    std::vector<lane_DECODE> right;
-    std::vector<lane_DECODE> left;
-    for (int i = 0; i < final_lane.size(); i++) {
-        for (int j = 0; j < final_lane[i].Lane.size(); j++) {
-            float px = final_lane[i].Lane[j].x * sx1;
-            float py = final_lane[i].Lane[j].y * sy1;
-            if (px > 0 && px < 1280) {
-                if (px - 640 < 0) {
-                    final_lane[i].dis = abs(px - 640);
-                    left.push_back(final_lane[i]);
-                    break;
-                }
-                if (px - 640 >= 0) {
-                    final_lane[i].dis = px - 640;
-                    right.push_back(final_lane[i]);
-                    break;
-                }
-            }
-        }
-    }
-    if (left.size() > 0)
-    {
-        sort(left.begin(), left.end(), moreSort);
-        for (int i = 0; i < left.size(); i++) {
-            if (i == 0) {
-                left[i].LeftRightType = -1;
-            }
-            else
-            {
-                left[i].LeftRightType = -2;
-            }
-            m_final_lane_with_type.push_back(left[i]);
-        }
-    }
 
-    if (right.size() > 0) {
-        sort(right.begin(), right.end(), moreSort);
-        for (int i = 0; i < right.size(); i++) {
-            if (i == 0) {
-                right[i].LeftRightType = 1;
-            }
-            else
-            {
-                right[i].LeftRightType = 2;
-            }
-            m_final_lane_with_type.push_back(right[i]);
-        }
-    }
-}
 
-LaneDetect::~LaneDetect() {
+PupilDetect::~PupilDetect() {
     // if (net!=nullptr){
     //     net->releaseModel();
     //     net->releaseSession(session);
