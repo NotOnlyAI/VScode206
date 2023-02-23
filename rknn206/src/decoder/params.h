@@ -16,8 +16,7 @@
 namespace wenet {
 
 std::shared_ptr<FeaturePipelineConfig> InitFeaturePipelineConfigFromFlags() {
-  auto feature_config = std::make_shared<FeaturePipelineConfig>(
-      80, 16000);
+  auto feature_config = std::make_shared<FeaturePipelineConfig>(80, 16000);
   return feature_config;
   }
 

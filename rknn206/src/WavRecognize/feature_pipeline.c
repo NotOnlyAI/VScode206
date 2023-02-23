@@ -32,13 +32,7 @@ void FeaturePipeline::AcceptWaveform(const std::vector<float>& wav) {
   std::vector<std::vector<float>> feats;
   int num_frames = fbank_.Compute(wav, &feats);
 
-  // for (size_t i = 0; i < feats.size(); ++i) 
-  // {
-  //   for(int j=0;j<80;j++)
-  //   {
-  //     std::cout<<j<<":"<<feats.at(0).at(j)<<std::endl;
-  //   }
-  // }
+
   for (size_t i = 0; i < feats.size(); ++i) {
     feature_queue_.push(std::move(feats[i]));
   }

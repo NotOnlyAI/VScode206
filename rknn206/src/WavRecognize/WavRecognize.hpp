@@ -64,9 +64,6 @@ public:
 
     int Init(int print_config,int modelType);
     void ForwardThread();
-    bool ReadOneChunk(std::vector<std::vector<float>> &chunk);
-    void GetChunkThread();
-
 
     int InitModel(string model_path,
                                 rknn_context &ctx,rknn_input_output_num &io_num,

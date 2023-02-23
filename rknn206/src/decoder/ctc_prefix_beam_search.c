@@ -90,8 +90,7 @@ void CtcPrefixBeamSearch::UpdateHypotheses(
 void CtcPrefixBeamSearch::Search(const std::vector<std::vector<float>>& logp) {
   if (logp.size() == 0) return;
   int first_beam_size = std::min(static_cast<int>(logp[0].size()),opts_.first_beam_size);
-  for (int t = 0; t < logp.size(); ++t, ++abs_time_step_) 
-  {
+  for (int t = 0; t < logp.size(); ++t, ++abs_time_step_) {
     const std::vector<float>& logp_t = logp[t];
     std::unordered_map<std::vector<int>, PrefixScore, PrefixHash> next_hyps;
     // 1. First beam prune, only select topk candidates
@@ -99,82 +98,82 @@ void CtcPrefixBeamSearch::Search(const std::vector<std::vector<float>>& logp) {
     std::vector<int32_t> topk_index;
     TopK(logp_t, first_beam_size, &topk_score, &topk_index);
 
-    // // 2. Token passing
-    // for (int i = 0; i < topk_index.size(); ++i) {
-    //   int id = topk_index[i];
-    //   auto prob = topk_score[i];
-    //   for (const auto& it : cur_hyps_) {
-    //     const std::vector<int>& prefix = it.first;
-    //     const PrefixScore& prefix_score = it.second;
-    //     // If prefix doesn't exist in next_hyps, next_hyps[prefix] will insert
-    //     // PrefixScore(-inf, -inf) by default, since the default constructor
-    //     // of PrefixScore will set fields s(blank ending score) and
-    //     // ns(none blank ending score) to -inf, respectively.
-    //     if (id == opts_.blank) {
-    //       // Case 0: *a + ε => *a
-    //       PrefixScore& next_score = next_hyps[prefix];
-    //       next_score.s = LogAdd(next_score.s, prefix_score.score() + prob);
-    //       next_score.v_s = prefix_score.viterbi_score() + prob;
-    //       next_score.times_s = prefix_score.times();
-    //       // Prefix not changed, copy the context from prefix.
-    //       /*if (context_graph_ && !next_score.has_context) {
-    //         next_score.CopyContext(prefix_score);
-    //         next_score.has_context = true;
-    //       }*/
-    //     } else if (!prefix.empty() && id == prefix.back()) {
-    //       // Case 1: *a + a => *a
-    //       PrefixScore& next_score1 = next_hyps[prefix];
-    //       next_score1.ns = LogAdd(next_score1.ns, prefix_score.ns + prob);
-    //       if (next_score1.v_ns < prefix_score.v_ns + prob) {
-    //         next_score1.v_ns = prefix_score.v_ns + prob;
-    //         if (next_score1.cur_token_prob < prob) {
-    //           next_score1.cur_token_prob = prob;
-    //           next_score1.times_ns = prefix_score.times_ns;
-    //           //CHECK_GT(next_score1.times_ns.size(), 0);
-    //           next_score1.times_ns.back() = abs_time_step_;
-    //         }
-    //       }
-    //       // Case 2: *aε + a => *aa
-    //       std::vector<int> new_prefix(prefix);
-    //       new_prefix.emplace_back(id);
-    //       PrefixScore& next_score2 = next_hyps[new_prefix];
-    //       next_score2.ns = LogAdd(next_score2.ns, prefix_score.s + prob);
-    //       if (next_score2.v_ns < prefix_score.v_s + prob) {
-    //         next_score2.v_ns = prefix_score.v_s + prob;
-    //         next_score2.cur_token_prob = prob;
-    //         next_score2.times_ns = prefix_score.times_s;
-    //         next_score2.times_ns.emplace_back(abs_time_step_);
-    //       }
+    // 2. Token passing
+    for (int i = 0; i < topk_index.size(); ++i) {
+      int id = topk_index[i];
+      auto prob = topk_score[i];
+      for (const auto& it : cur_hyps_) {
+        const std::vector<int>& prefix = it.first;
+        const PrefixScore& prefix_score = it.second;
+        // If prefix doesn't exist in next_hyps, next_hyps[prefix] will insert
+        // PrefixScore(-inf, -inf) by default, since the default constructor
+        // of PrefixScore will set fields s(blank ending score) and
+        // ns(none blank ending score) to -inf, respectively.
+        if (id == opts_.blank) {
+          // Case 0: *a + ε => *a
+          PrefixScore& next_score = next_hyps[prefix];
+          next_score.s = LogAdd(next_score.s, prefix_score.score() + prob);
+          next_score.v_s = prefix_score.viterbi_score() + prob;
+          next_score.times_s = prefix_score.times();
+          // Prefix not changed, copy the context from prefix.
+          /*if (context_graph_ && !next_score.has_context) {
+            next_score.CopyContext(prefix_score);
+            next_score.has_context = true;
+          }*/
+        } else if (!prefix.empty() && id == prefix.back()) {
+          // Case 1: *a + a => *a
+          PrefixScore& next_score1 = next_hyps[prefix];
+          next_score1.ns = LogAdd(next_score1.ns, prefix_score.ns + prob);
+          if (next_score1.v_ns < prefix_score.v_ns + prob) {
+            next_score1.v_ns = prefix_score.v_ns + prob;
+            if (next_score1.cur_token_prob < prob) {
+              next_score1.cur_token_prob = prob;
+              next_score1.times_ns = prefix_score.times_ns;
+              //CHECK_GT(next_score1.times_ns.size(), 0);
+              next_score1.times_ns.back() = abs_time_step_;
+            }
+          }
+          // Case 2: *aε + a => *aa
+          std::vector<int> new_prefix(prefix);
+          new_prefix.emplace_back(id);
+          PrefixScore& next_score2 = next_hyps[new_prefix];
+          next_score2.ns = LogAdd(next_score2.ns, prefix_score.s + prob);
+          if (next_score2.v_ns < prefix_score.v_s + prob) {
+            next_score2.v_ns = prefix_score.v_s + prob;
+            next_score2.cur_token_prob = prob;
+            next_score2.times_ns = prefix_score.times_s;
+            next_score2.times_ns.emplace_back(abs_time_step_);
+          }
 	  
-    //       } 
-	  // else {
-    //       // Case 3: *a + b => *ab, *aε + b => *ab
-    //       std::vector<int> new_prefix(prefix);
-    //       new_prefix.emplace_back(id);
-    //       PrefixScore& next_score = next_hyps[new_prefix];
-    //       next_score.ns = LogAdd(next_score.ns, prefix_score.score() + prob);
-    //       if (next_score.v_ns < prefix_score.viterbi_score() + prob) {
-    //         next_score.v_ns = prefix_score.viterbi_score() + prob;
-    //         next_score.cur_token_prob = prob;
-    //         next_score.times_ns = prefix_score.times();
-    //         next_score.times_ns.emplace_back(abs_time_step_);
-    //       }
-    //     }
-    //   }
-    // }
+          } 
+	  else {
+          // Case 3: *a + b => *ab, *aε + b => *ab
+          std::vector<int> new_prefix(prefix);
+          new_prefix.emplace_back(id);
+          PrefixScore& next_score = next_hyps[new_prefix];
+          next_score.ns = LogAdd(next_score.ns, prefix_score.score() + prob);
+          if (next_score.v_ns < prefix_score.viterbi_score() + prob) {
+            next_score.v_ns = prefix_score.viterbi_score() + prob;
+            next_score.cur_token_prob = prob;
+            next_score.times_ns = prefix_score.times();
+            next_score.times_ns.emplace_back(abs_time_step_);
+          }
+        }
+      }
+    }
 
-    // // 3. Second beam prune, only keep top n best paths
-    // std::vector<std::pair<std::vector<int>, PrefixScore>> arr(next_hyps.begin(),
-    //                                                           next_hyps.end());
-    // int second_beam_size =
-    //     std::min(static_cast<int>(arr.size()), opts_.second_beam_size);
-    // std::nth_element(arr.begin(), arr.begin() + second_beam_size, arr.end(),
-    //                  PrefixScoreCompare);
-    // arr.resize(second_beam_size);
-    // std::sort(arr.begin(), arr.end(), PrefixScoreCompare);
+    // 3. Second beam prune, only keep top n best paths
+    std::vector<std::pair<std::vector<int>, PrefixScore>> arr(next_hyps.begin(),
+                                                              next_hyps.end());
+    int second_beam_size =
+        std::min(static_cast<int>(arr.size()), opts_.second_beam_size);
+    std::nth_element(arr.begin(), arr.begin() + second_beam_size, arr.end(),
+                     PrefixScoreCompare);
+    arr.resize(second_beam_size);
+    std::sort(arr.begin(), arr.end(), PrefixScoreCompare);
 
-    // // 4. Update cur_hyps_ and get new result
-    // UpdateHypotheses(arr);
+    // 4. Update cur_hyps_ and get new result
+    UpdateHypotheses(arr);
   }
 }
 

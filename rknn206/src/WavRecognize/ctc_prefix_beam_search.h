@@ -19,8 +19,8 @@ namespace wenet {
 
 struct CtcPrefixBeamSearchOptions {
   int blank = 0;  // blank id
-  int first_beam_size = 10;
-  int second_beam_size = 10;
+  int first_beam_size = 20;
+  int second_beam_size = 20;
 };
 
 struct PrefixScore {

@@ -15,7 +15,7 @@ MNNDecoder::MNNDecoder(std::shared_ptr<FeaturePipeline> feature_pipeline): featu
     ctc_model_Map = MNN::Express::Variable::loadMap(ctc_model_path);
     std::cout<< "完成模型加载"<<std::endl;
     searcher_.reset(new CtcPrefixBeamSearch(ctc_search_opt_)); //context_graph==nllptr
-
+    
     std::ifstream fin;
     fin.open(words_table, std::ios::in);
     if (!fin.is_open()) {std::cout << "无法找到这个文件！" << std::endl;}

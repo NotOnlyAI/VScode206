@@ -182,11 +182,19 @@ int WavRecognize::GetWavSignalsThread()
         else{
             index_end=index+1600;
         }
+        if(m_pre_signal.size()<=0)
+        {
+            index_end=2000;
+        }
         std::vector<float> cur_signal(wav_reader.data()+index, wav_reader.data()+index_end);
-        index=index+1600;
+        index=index_end;
 
         std::vector<float> signal;
-        signal.insert(signal.end(),m_pre_signal.begin(),m_pre_signal.end());
+        if(m_pre_signal.size()>0)
+        {
+            signal.insert(signal.end(),m_pre_signal.begin(),m_pre_signal.end());
+        }
+        
         signal.insert(signal.end(),cur_signal.begin(),cur_signal.end());
 
         int rest_points = 0;
@@ -220,12 +228,13 @@ int WavRecognize::GetWavSignalsThread()
         
         if(num_frames<11)
         {
-            int padding_len = 11 - feats.size();
-            std::vector<float> zero_vector(80, 0);
-            for(int i=0; i<padding_len; i++)
-            {
-                feats.push_back(zero_vector);
-            }
+            // int padding_len = 11 - feats.size();
+            // std::vector<float> zero_vector(80, 0);
+            // for(int i=0; i<padding_len; i++)
+            // {
+            //     feats.push_back(zero_vector);
+            // }
+            break;
             
         }
         if(feats.size()!=11){
@@ -317,74 +326,31 @@ int WavRecognize::Init(int print_config,int modelType){
 
     string model_name1="encoder_chunk_16-32.rknn";
     InitModel(model_name1,encoder_ctx_1,encoder_io_num_1,encoder_input_attrs_1,encoder_output_attrs_1,encoder_inputs_1,encoder_outputs_1);
-    string ctc_model_path_1="ctc_16-32.rknn";
+    string ctc_model_path_1="ctc_0-16.rknn";
     InitModel(ctc_model_path_1,ctc_ctx_1,ctc_io_num_1,ctc_input_attrs_1,ctc_output_attrs_1,ctc_inputs_1,ctc_outputs_1);
 
     string model_name2="encoder_chunk_32-48.rknn";
     InitModel(model_name2,encoder_ctx_2,encoder_io_num_2,encoder_input_attrs_2,encoder_output_attrs_2,encoder_inputs_2,encoder_outputs_2);
-    string ctc_model_path_2="ctc_32-48.rknn";
+    string ctc_model_path_2="ctc_0-16.rknn";
     InitModel(ctc_model_path_2,ctc_ctx_2,ctc_io_num_2,ctc_input_attrs_2,ctc_output_attrs_2,ctc_inputs_2,ctc_outputs_2);
 
     string model_name3="encoder_chunk_48-64.rknn";
     InitModel(model_name3,encoder_ctx_3,encoder_io_num_3,encoder_input_attrs_3,encoder_output_attrs_3,encoder_inputs_3,encoder_outputs_3);
-    string ctc_model_path_3="ctc_48-64.rknn";
+    string ctc_model_path_3="ctc_0-16.rknn";
     InitModel(ctc_model_path_3,ctc_ctx_3,ctc_io_num_3,ctc_input_attrs_3,ctc_output_attrs_3,ctc_inputs_3,ctc_outputs_3);
 
     string model_name4="encoder_chunk_64-80.rknn";
     InitModel(model_name4,encoder_ctx_4,encoder_io_num_4,encoder_input_attrs_4,encoder_output_attrs_4,encoder_inputs_4,encoder_outputs_4);
-    string ctc_model_path_4="ctc_64-80.rknn";
+    string ctc_model_path_4="ctc_0-16.rknn";
     InitModel(ctc_model_path_4,ctc_ctx_4,ctc_io_num_4,ctc_input_attrs_4,ctc_output_attrs_4,ctc_inputs_4,ctc_outputs_4);
 
 
     string model_name5="encoder_chunk_80-96.rknn";
     InitModel(model_name5,encoder_ctx_5,encoder_io_num_5,encoder_input_attrs_5,encoder_output_attrs_5,encoder_inputs_5,encoder_outputs_5);
-    string ctc_model_path_5="ctc_80-96.rknn";
+    string ctc_model_path_5="ctc_0-16.rknn";
     InitModel(ctc_model_path_5,ctc_ctx_5,ctc_io_num_5,ctc_input_attrs_5,ctc_output_attrs_5,ctc_inputs_5,ctc_outputs_5);
 
 }
-
-void WavRecognize::GetChunkThread()
-{
-    bool end_flag=false;
-    const int feature_dim_ = 80;
-    const int num_frames_ = 67;
-
-
-
-    while(!end_flag)
-    {
-      //这里主要实现的是，读取一段音频，对音频进行每67个frame一次送入forward，
-        std::vector<std::vector<float>> chunk_feats;
-        if (!m_feature_pipeline->Read(num_frames_, &chunk_feats)) //说明feat结束，没有获取67个frame数据，则自动补0
-        {
-  	        int padding_len = num_frames_ - chunk_feats.size();
-  	        std::vector<float> zero_vector(feature_dim_, 0);
-  	        for(int i=0; i<padding_len; i++)
-  	        {
-  	            chunk_feats.push_back(zero_vector);
-  	        }
-       	    end_flag=true;
-  	    }
-        m_chunk_queue.push(chunk_feats);
-        // cout<<"add one chunk_feats"<<endl;
-    }
-} 
-
-
-bool WavRecognize::ReadOneChunk(std::vector<std::vector<float>> &chunk) {
-    if (!m_chunk_queue.empty()) 
-    {
-        chunk = m_chunk_queue.front();
-        m_chunk_queue.pop();
-        return true;
-    } else 
-    {
-        return false; 
-    }  
-}
-
-
-
 
 
 
@@ -498,7 +464,7 @@ void WavRecognize::ForwardThread()
             }
 
 
-            ctc_inputs_0[0].buf = (void*)encoder_outputs_0[0].buf;
+            ctc_inputs_0[0].buf = (float*)encoder_outputs_0[0].buf;
             rknn_inputs_set(ctc_ctx_0, ctc_io_num_0.n_input, ctc_inputs_0);
             memset(ctc_outputs_0, 0, sizeof(ctc_outputs_0));
             for (int i = 0; i < ctc_io_num_0.n_output; i++) {ctc_outputs_0[i].want_float = 1;}
@@ -563,7 +529,7 @@ void WavRecognize::ForwardThread()
             }
 
 
-            ctc_inputs_1[0].buf = (void*)encoder_outputs_1[0].buf;
+            ctc_inputs_1[0].buf = (float*)(encoder_outputs_1[0].buf+16*chunk_num*256);
             rknn_inputs_set(ctc_ctx_1, ctc_io_num_1.n_input, ctc_inputs_1);
             memset(ctc_outputs_1, 0, sizeof(ctc_outputs_1));
             for (int i = 0; i < ctc_io_num_1.n_output; i++) {ctc_outputs_1[i].want_float = 1;}
@@ -627,7 +593,7 @@ void WavRecognize::ForwardThread()
             }
 
 
-            ctc_inputs_2[0].buf = (void*)encoder_outputs_2[0].buf;
+            ctc_inputs_2[0].buf =(void*) ((float*)(encoder_outputs_2[0].buf+16*chunk_num*256));
             rknn_inputs_set(ctc_ctx_2, ctc_io_num_2.n_input, ctc_inputs_2);
             memset(ctc_outputs_2, 0, sizeof(ctc_outputs_2));
             for (int i = 0; i < ctc_io_num_2.n_output; i++) {ctc_outputs_2[i].want_float = 1;}
@@ -691,7 +657,7 @@ void WavRecognize::ForwardThread()
             }
 
 
-            ctc_inputs_3[0].buf = (void*)encoder_outputs_3[0].buf;
+            ctc_inputs_3[0].buf = (float*)(encoder_outputs_3[0].buf+16*chunk_num*256);
             rknn_inputs_set(ctc_ctx_3, ctc_io_num_3.n_input, ctc_inputs_3);
             memset(ctc_outputs_3, 0, sizeof(ctc_outputs_3));
             for (int i = 0; i < ctc_io_num_3.n_output; i++) {ctc_outputs_3[i].want_float = 1;}
@@ -756,7 +722,7 @@ void WavRecognize::ForwardThread()
             }
 
 
-            ctc_inputs_4[0].buf = (void*)encoder_outputs_4[0].buf;
+            ctc_inputs_4[0].buf = (float*)(encoder_outputs_4[0].buf+16*chunk_num*256);
             rknn_inputs_set(ctc_ctx_4, ctc_io_num_4.n_input, ctc_inputs_4);
             memset(ctc_outputs_4, 0, sizeof(ctc_outputs_4));
             for (int i = 0; i < ctc_io_num_4.n_output; i++) {ctc_outputs_4[i].want_float = 1;}
@@ -820,7 +786,7 @@ void WavRecognize::ForwardThread()
             }
 
 
-            ctc_inputs_5[0].buf = (void*)encoder_outputs_5[0].buf;
+            ctc_inputs_5[0].buf = (float*)(encoder_outputs_5[0].buf+16*chunk_num*256);
             rknn_inputs_set(ctc_ctx_5, ctc_io_num_5.n_input, ctc_inputs_5);
             memset(ctc_outputs_5, 0, sizeof(ctc_outputs_5));
             for (int i = 0; i < ctc_io_num_5.n_output; i++) {ctc_outputs_5[i].want_float = 1;}
