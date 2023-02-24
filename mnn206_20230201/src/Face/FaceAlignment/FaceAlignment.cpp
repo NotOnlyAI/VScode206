@@ -6,11 +6,9 @@
 #include "FaceAlignment.hpp"
 #include "M2utils/image_utils_new.h"
 #include <opencv2/opencv.hpp>
+#include <opencv2/calib3d.hpp>
 using namespace std;
 using namespace M2;
-
-
-
 
 
 FaceAlignment::FaceAlignment() {
@@ -44,14 +42,14 @@ int FaceAlignment::init(int deviceTpye,int print_config,int modelType,float rati
     }
     else if (modelType==1)
     {
-        mnnPath="./models206/FaceAlignment_pfld.mnn";;
+        mnnPath="./models206/pfpld.mnn";;
         dimType = MNN::Tensor::CAFFE;
-        in_h=96;
-        in_w=96;
-        input_blob_names={"data"};
-        output_blob_names={"conv5_fwd"};
-        float mean[3]     = {123.0f,   123.0f,   123.0f};
-        float normals[3] = {0.01724f, 0.01724f, 0.01724f};
+        in_h=112;
+        in_w=112;
+        input_blob_names={"input"};
+        output_blob_names={"landms","pose"};
+        float mean[3]     = {0.0f, 0.0f, 0.0f};
+        float normals[3] = {0.0039215686274509803921568627451f, 0.0039215686274509803921568627451f, 0.0039215686274509803921568627451f};
         ::memcpy(imconfig.mean, mean, sizeof(mean));
         ::memcpy(imconfig.normal, normals, sizeof(normals));
         imconfig.sourceFormat = MNN::CV::BGR;
@@ -137,36 +135,30 @@ int FaceAlignment::ForwardBGR(const cv::Mat &image,const M2::Object &face,M2::La
 
     auto start = chrono::steady_clock::now();
 
+    float  cx = face.rect.x + face.rect.width/float(2.0);
+    float  cy = face.rect.y + face.rect.height/float(2.0);
+    float size_w = max(face.rect.width*1.25, face.rect.height*1.25);
+    float size_h = max(face.rect.width*1.25, face.rect.height*1.25);
+    float x1 = cx - size_w*0.5;
+    float x2 = x1 + size_w;
+    float y1 = cy - size_h * 0.5;
+    float y2 = y1 + size_h;
 
-    double newx1=max(face.rect.x-0.125*face.rect.width,1.0);
-    double newy1=max(face.rect.y-0.125*face.rect.height,1.0);
-    double newx2 = min(face.rect.x + 1.125 * face.rect.width, image.cols - 1.0);
-    double newy2 = min(face.rect.y + 1.125 * face.rect.height, image.rows - 1.0);
-    double dw=min(newx2-(face.rect.x+face.rect.width),face.rect.x-newx1);
-    double dh=min(newy2-(face.rect.y+face.rect.height),face.rect.y-newy1);
-    double dd=min(dw,dh);
 
-
+    if (x1 < 0) x1 = 1;
+    if (y1 < 0) y1 = 1;       
+    if (x2 >= image.cols) x2 =image.cols-1;      
+    if (y2 >= image.rows) y2 = image.rows - 1;      
+ 
     cv::Rect rect_new;
-    rect_new.x=int(face.rect.x-dd);
-    rect_new.y=int(face.rect.y-dd);
-    rect_new.width=int(face.rect.width+2*dd);
-    rect_new.height=int(face.rect.height+2*dd);
-
-    // cv::Rect rect_new;
-    // rect_new.x=int(face.rect.x);
-    // rect_new.y=int(face.rect.y);
-    // rect_new.width=int(face.rect.width);
-    // rect_new.height=int(face.rect.height);
-
+    rect_new.x=int(x1);
+    rect_new.y=int(y1);
+    rect_new.width=int(x2-x1);
+    rect_new.height=int(y2-y1);
     image_h = rect_new.height;
     image_w = rect_new.width;
-
-
-
     cv::Mat crop_image=image(rect_new);
-    // cv::imwrite("crop1.jpg",crop_image);
-    // exit(0);
+    // cv::imshow("crop_image",crop_image);
     // cv::waitKey(0);
 
     cv::Mat resize_img;
@@ -181,17 +173,8 @@ int FaceAlignment::ForwardBGR(const cv::Mat &image,const M2::Object &face,M2::La
     for (int i = 0; i < output_blob_names.size(); i++) {
 		outputTensors[i]->copyToHostTensor(outputTensors_host[i]);
 	}
-    // if(m_print>=1){
-    //     chrono::duration<double> elapsed2 = chrono::steady_clock::now() - start;
-    //     cout << "net time:" << elapsed2.count() << " s" << endl;
-    //     outputTensors_host[0]->printShape();
-    //     for (int i = 0; i < 20; ++i) {
-    //         MNN_PRINT("copy %f\n", outputTensors_host[0]->host<float>()[i]);
-    //     }
-    // }
 
-
-    decode(outputTensors_host);
+    Decode(outputTensors_host);
 
 
     landmarkinfo.numPoints= m_landmarkInfo.numPoints;
@@ -297,20 +280,18 @@ int FaceAlignment::ForwardBGR(const cv::Mat &image,const M2::Object &face,M2::La
 
     }
     
-
-
-
-
     if(m_print>=1){
         auto end = chrono::steady_clock::now();
         chrono::duration<double> elapsed = end - start;
         cout << "FaceAlignment inference time:" << elapsed.count() << " s" << endl;
+        cout << "yaw:"<<m_Yaw <<" pitch:"<<m_Pitch<< " roll:"<<m_Roll<<endl;
     }
     return 0;
 }
 
 
-int FaceAlignment::DMSJudge(const M2::LandmarkInfo &landmarkinfo,int &DMSTpye)
+
+int FaceAlignment::mouthJudge(const M2::LandmarkInfo &landmarkinfo,int &DMSTpye)
 {
     if(m_modelType==0)
     {
@@ -379,12 +360,26 @@ int FaceAlignment::DMSJudge(const M2::LandmarkInfo &landmarkinfo,int &DMSTpye)
 
 }
 
-int FaceAlignment::decode(std::vector< MNN::Tensor*> &outputTensors_host)
+int FaceAlignment::poseJudge(int &pose_state)
 {
-    // for (int i = 0; i < 10; ++i) {
-    //     MNN_PRINT("func %f, %f\n", outputTensors_host[0]->host<float>()[2*i+0], outputTensors_host[0]->host<float>()[2*i+0]);
-    // }
 
+    if(m_modelType==1)
+    {
+        if(m_Pitch>32||m_Pitch<15)
+        {
+            // cout<<"pose_state 1:"<<m_Pitch<<endl;
+            pose_state=1;
+        }
+        return 0;
+
+    }
+
+    return 0;
+}
+
+
+int FaceAlignment::Decode(std::vector< MNN::Tensor*> &outputTensors_host)
+{
 
     if(m_modelType==0)
     {
@@ -395,72 +390,23 @@ int FaceAlignment::decode(std::vector< MNN::Tensor*> &outputTensors_host)
             // MNN_PRINT("func %f, %f\n", m_landmarkInfo.landmark[i].x, m_landmarkInfo.landmark[i].y);
         }
         m_landmarkInfo.numPoints=468;
-
-
-        
-        return 0;
+        m_Yaw=0;
+        m_Pitch=0;
+        m_Roll=0;
     }
-
-    // if(m_modelType==1)
-    // {
-    //     for (int i = 0; i < 106; ++i) {
-    //         m_landmarkInfo.landmark[i].x= (outputTensors_host[0]->host<float>()[2*i+0]+1)*0.5*image_w;
-    //         m_landmarkInfo.landmark[i].y= (outputTensors_host[0]->host<float>()[2*i+1]+1)*0.5*image_h;
-    //         MNN_PRINT("func %f, %f\n", m_landmarkInfo.landmark[i].x, m_landmarkInfo.landmark[i].y);
-    //     }
-    //     m_landmarkInfo.numPoints=106;
-
-
-    //     // left_eye_points.clear();
-    //     // right_eye_points.clear();
-
-    //     // for (int i = 0; i < 468; ++i) {
-    //     //     if(i==33||i==159||i==133||i==145)
-    //     //     {
-    //     //         M2::Point2f p;
-    //     //         p.x=outputTensors_host[0]->host<float>()[3*i];
-    //     //         p.y=outputTensors_host[0]->host<float>()[3*i+1];
-    //     //         p.z=outputTensors_host[0]->host<float>()[3*i+2];
-    //     //         left_eye_points.push_back(p);
-    //     //     }
-    //     //     if(i==362||i==386||i==263||i=374)
-    //     //     {
-    //     //         M2::Point2f p;
-    //     //         p.x=outputTensors_host[0]->host<float>()[3*i];
-    //     //         p.y=outputTensors_host[0]->host<float>()[3*i+1];
-    //     //         p.z=outputTensors_host[0]->host<float>()[3*i+2];
-    //     //         right_eye_points.push_back(p);
-    //     //     }
-    //     // }
-    //     return 0;
-    // }
-
-
-
-    // if (m_modelType==1)
-    // {
-    //     for (int i = 0; i < 68; ++i) {
-    //         m_landmarkInfo.landmark[i].x= (outputTensors_host[0]->host<float>()[2*i+0]+1)*0.5*image_w;
-    //         m_landmarkInfo.landmark[i].y= (outputTensors_host[0]->host<float>()[2*i+1]+1)*0.5*image_h;
-    //         //     MNN_PRINT("func %f, %f\n", outputTensors_host[0]->host<float>()[2*i+0], outputTensors_host[0]->host<float>()[2*i+0]);
-    //     }
-    //     m_landmarkInfo.numPoints=68;
-    //     return 0;
-    // }
 
     if (m_modelType==1)
     {
-        float scale_x = static_cast<float>(image_w) / in_w;
-        float scale_y = static_cast<float>(image_h) / in_h;
         for (int i = 0; i < 98; ++i) {
-            m_landmarkInfo.landmark[i].x= (outputTensors_host[0]->host<float>()[2*i+0])*scale_x;
-            m_landmarkInfo.landmark[i].y= (outputTensors_host[0]->host<float>()[2*i+1])*scale_y;
+            m_landmarkInfo.landmark[i].x= (outputTensors_host[0]->host<float>()[2*i+0])*image_w;
+            m_landmarkInfo.landmark[i].y= (outputTensors_host[0]->host<float>()[2*i+1])*image_h;
                 // MNN_PRINT("func %f, %f\n", outputTensors_host[0]->host<float>()[2*i+0], outputTensors_host[0]->host<float>()[2*i+0]);
         }
         m_landmarkInfo.numPoints=98;
+        m_Yaw=outputTensors_host[0]->host<float>()[0]*180.0/3.14;
+        m_Pitch=outputTensors_host[0]->host<float>()[1]*180.0/3.14;
+        m_Roll=outputTensors_host[0]->host<float>()[2]*180.0/3.14;
     }
-
-
 
     return 0;
 

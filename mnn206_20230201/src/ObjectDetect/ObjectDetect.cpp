@@ -377,9 +377,6 @@ int ObjectDetect::decode(std::vector< MNN::Tensor*> &outputTensors_host)
                         box_prob = box_objectness * box_cls_score;
                         if(box_prob>0.3)
                         {
-                            
-
-
                             x_center = (outputTensors_host[i]->host<float>()[w+h*grid_w+0*grid_h*grid_w]+w)*stride;
                             y_center = (outputTensors_host[i]->host<float>()[w+h*grid_w+1*grid_h*grid_w]+h)*stride;
                             ww = exp(outputTensors_host[i]->host<float>()[w+h*grid_w+2*grid_h*grid_w])*stride;

@@ -100,9 +100,11 @@ int ObjectD_demo()
 
 
         // FaceDetect_visImg(frame,objectinfo);
-        wri << frame;
-        // cv::imshow("11",frame);
-        // cv::waitKey(0);
+        
+        cv::imshow("11",frame);
+        cv::waitKey(0);
+
+        // wri << frame;s
         n_frame++;
     } 
 
@@ -224,9 +226,8 @@ int DMS_demo()
 
 
     while (1) {
-        // cv::Mat frame=cv::imread("1.jpg");
+        // cv::Mat frame=cv::imread("test.jpg");
         cap >> frame0;
-
         cv::cvtColor(frame0,frame1,cv::COLOR_BGR2GRAY);
         cv::cvtColor(frame1,frame,cv::COLOR_GRAY2BGR);
 
@@ -260,7 +261,7 @@ int DMS_demo()
         cv::putText(frame, fpsSs.str(), cv::Point(16, 32),cv::FONT_HERSHEY_COMPLEX, 0.8, cv::Scalar(0, 0, 255));
 
         cv::Scalar color;
-        if (dms.mouth_state==1 || dms.eye_state==1)
+        if (dms.mouth_state==1 || dms.eye_state==1 || dms.face_state==1)
         {
             color[0]=0;
             color[1]=0;
@@ -296,10 +297,18 @@ int DMS_demo()
                 // cout<<i<<": "<<landmarkinfo.landmark[i].x<<","<<landmarkinfo.landmark[i].y<<endl;
                 cv::Point p1(landmarkinfo.landmark[i].x ,landmarkinfo.landmark[i].y);
                 cv::circle(frame, p1, 1, color, -1); 
+
+                // std::string text =std::to_string(i);
+                // cv::Point origin;
+                // origin.x = p1.x+5;
+                // origin.y = p1.y+5;
+                // cv::putText(frame, text, origin, cv::FONT_HERSHEY_COMPLEX, 0.5, color, 1, 8, 0);
+                
             }
         }
 
         cv::imshow("dd",frame);
+        // exit(0);
         cv::waitKey(0);
         // wri << frame;
     } 
@@ -316,6 +325,7 @@ int main(int argc, char *argv[])
     
     // Lane_demo();
     DMS_demo();
+    // ObjectD_demo();
 
     return 0;
 }

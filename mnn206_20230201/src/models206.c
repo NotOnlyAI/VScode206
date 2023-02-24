@@ -390,13 +390,16 @@ int M2_DMS(const cv::Mat &image,M2::ObjectInfo &objectinfo,M2::LandmarkInfo &lan
     }
 
     M2_FaceDetect_ForwardBGR(bgr_image,objectinfo,0);
-    int eye_state;
-    int mouth_state;
+    int eye_state=0;
+    int mouth_state=0;
+    int pose_state=0;
     if(objectinfo.ObjectNum>=1)
     {   
         M2_FaceAlignment_ForwardBGR(bgr_image,objectinfo.objects[0],landmarkinfo);
-        myFaceAlignment.DMSJudge(landmarkinfo,mouth_state);
+        myFaceAlignment.mouthJudge(landmarkinfo,mouth_state);
+        myFaceAlignment.poseJudge(pose_state);
         dms.mouth_state=mouth_state;
+        dms.face_state=pose_state;
         M2_EyeState_ForwardBGR(bgr_image,myFaceAlignment.m_left_rect,myFaceAlignment.m_right_rect,eye_state);
         dms.eye_state=eye_state;
     }else

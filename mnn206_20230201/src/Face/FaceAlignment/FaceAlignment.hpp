@@ -42,7 +42,8 @@ public:
 
     int ForwardBGR(const cv::Mat &image,const M2::Object &face,M2::LandmarkInfo &landmarkinfo);
 
-    int DMSJudge(const M2::LandmarkInfo &landmarkinfo,int &DMSTpye);
+    int mouthJudge(const M2::LandmarkInfo &landmarkinfo,int &DMSTpye);
+    int poseJudge(int &pose_state);
 
     int init(int deviceTpye,int print_config,int modelType,float ratio_eye,float ratio_mouth);
     
@@ -57,6 +58,8 @@ public:
     cv::Rect m_right_rect;
 
 
+    float m_Yaw,m_Pitch,m_Roll;
+
     bool model_is_ok=false;
 
 
@@ -64,7 +67,7 @@ private:
 
     
 
-    int decode(std::vector< MNN::Tensor*> &outputTensors_host);
+    int Decode(std::vector< MNN::Tensor*> &outputTensors_host);
 
     std::shared_ptr<MNN::Interpreter> net;
     MNN::Session *session = nullptr;

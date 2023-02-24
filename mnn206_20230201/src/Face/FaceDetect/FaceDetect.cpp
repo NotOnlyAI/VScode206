@@ -10,7 +10,6 @@ using namespace std;
 using namespace M2;
 
 
-using namespace MNN::CV;
 
 M2::ObjectInfo GetMaxFace(M2::ObjectInfo objinfo,int &rect_index)//获取面积最大的人脸
 {
@@ -459,7 +458,7 @@ int FaceDetect::decode(std::vector< MNN::Tensor*> &outputTensors_host)
                     f32Score1=outputTensors_host[i]->host<float>()[w+h*grid_w+(k*2+1)*grid_h*grid_w];
                     // cout<<"f32Score0:"<<f32Score0<<"  f32Score1:"<<f32Score1<<endl;
                     SVP_NNIE_SoftMax2(f32Score0,f32Score1);
-                    if(f32Score1>0.5)
+                    if(f32Score1>0.8)
                     {
                         // cout<<"f32Score0:"<<f32Score0<<"  f32Score1:"<<f32Score1<<endl;
                         float max_val=0.999;
