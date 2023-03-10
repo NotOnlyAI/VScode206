@@ -56,7 +56,7 @@ public:
 
     int ForwardBGR(const cv::Mat &image,M2::ObjectInfo &objectinfo,int max_or_mid);
 
-    int init(int deviceTpye,int print_config,int modelType);
+    int Init(int printConfig,int modelType,float score_thresh);
 
 
     // int visImg(const M2::ImgData_T &imgdata,const M2::DetectResult &re);
@@ -97,6 +97,7 @@ private:
     int image_w;
     int m_print;
     int m_modelType;
+    float m_score_thresh;
 
 };
 

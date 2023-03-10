@@ -31,7 +31,9 @@ public:
 
     int ForwardBGR(const cv::Mat &image,M2::ObjectInfo &objectinfo);
 
-    int init(int deviceTpye,int print_config,int modelType);
+    int ForwardBatchBGR(const std::vector<cv::Mat> &batch_images,std::vector<M2::ObjectInfo> &batch_objectinfo);
+
+    int InitWithBatch(int printCfg,int modelType,int batch);
 
     // int visImg(const M2::ImgData_T &imgdata,const M2::DetectResult &re);
 
@@ -41,7 +43,7 @@ public:
 private:
 
     int decode(std::vector< MNN::Tensor*> &outputTensors_host);
-
+    int DecodeBatch(int batch,std::vector<cv::Size> &imageSize_vector,std::vector< MNN::Tensor*> &outputTensors_host,std::vector<M2::ObjectInfo> &batch_objectinfo);
 
 
 

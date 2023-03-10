@@ -48,5 +48,11 @@ M2_EXPORT int M2_FaceAlignment_ForwardBGR_MaxFace(const cv::Mat &image,M2::Objec
 M2_EXPORT int M2_EyeState_ForwardBGR(const cv::Mat &image,const cv::Rect &left_rect,const cv::Rect &right_rect,int &eyestate);
 //
 
+
+// add 
+int M2_ObjectDetect_ForwardBGR_BATCH(const std::vector<cv::Mat> &batch_images,std::vector<M2::ObjectInfo> &batch_objectinfos);
+int M2_ObjectDetect_ForwardBGR_BIGIMAGE(const cv::Mat &image,M2::ObjectInfo &objectinfo,int nrows=2, int ncols=3);
+
+
 #endif
 

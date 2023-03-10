@@ -36,8 +36,6 @@ int main(int argc, char *argv[])
     LaneDetect mlane ;
     mlane.Init(0,0,1);
 
-    
-    
 
     while(1)
     {
@@ -65,9 +63,6 @@ int main(int argc, char *argv[])
         cv::waitKey(0);
 
     }
-
-        
-
 
 
     return 0;

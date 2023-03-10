@@ -190,11 +190,12 @@ FaceDetect::FaceDetect() {
 }
 
 
-int FaceDetect::init(int deviceTpye,int print_config,int modelType)
+int FaceDetect::Init(int printConfig,int modelType,float score_thresh)
 {
 
-    m_print=print_config;
+    m_print=printConfig;
     m_modelType=modelType;
+    m_score_thresh=score_thresh;
     string mnnPath;
 
     if (modelType==0){ 
@@ -251,6 +252,7 @@ int FaceDetect::init(int deviceTpye,int print_config,int modelType)
 
     net = std::shared_ptr<MNN::Interpreter>(MNN::Interpreter::createFromFile(mnnPath.c_str()));
     MNN::ScheduleConfig config;
+    int deviceTpye=3;
     config.type=(MNNForwardType)(deviceTpye);
     config.mode = MNN_GPU_TUNING_NORMAL | MNN_GPU_MEMORY_IMAGE;
     MNN::BackendConfig backendConfig;
@@ -458,7 +460,7 @@ int FaceDetect::decode(std::vector< MNN::Tensor*> &outputTensors_host)
                     f32Score1=outputTensors_host[i]->host<float>()[w+h*grid_w+(k*2+1)*grid_h*grid_w];
                     // cout<<"f32Score0:"<<f32Score0<<"  f32Score1:"<<f32Score1<<endl;
                     SVP_NNIE_SoftMax2(f32Score0,f32Score1);
-                    if(f32Score1>0.8)
+                    if(f32Score1>m_score_thresh)
                     {
                         // cout<<"f32Score0:"<<f32Score0<<"  f32Score1:"<<f32Score1<<endl;
                         float max_val=0.999;

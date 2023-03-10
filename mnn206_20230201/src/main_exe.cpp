@@ -114,6 +114,59 @@ int ObjectD_demo()
 }
 
 
+int ObjectD_demo2()
+{
+    
+
+    cv::Mat image_big0=cv::imread("big.jpg");
+    cv::Mat image_big;
+    cv::resize(image_big0,image_big,cv::Size(480*3,360*2));
+    int batch_size=6;
+
+
+    int n_frame=0;
+    
+
+    while (1) 
+    {
+        if (n_frame>10)
+            break;
+        
+        cv::Mat image=image_big.clone();
+
+        M2::ObjectInfo objectinfo;
+        M2_ObjectDetect_ForwardBGR_BIGIMAGE(image,objectinfo);
+        cout<<objectinfo.ObjectNum<<endl;
+
+        n_frame++;
+        for(int i=0;i<objectinfo.ObjectNum;i++)
+        {
+            std::string text =std::to_string(int(objectinfo.objects[i].prob*100));
+            int font_face = cv::FONT_HERSHEY_COMPLEX;
+            double font_scale = 0.8;
+            int thickness = 1;
+            //    int baseline;
+            //    cv::Size text_size = cv::getTextSize(text, font_face, font_scale, thickness, &baseline);
+                // 将文本框居中绘制
+            cv::Point origin;
+            origin.x = objectinfo.objects[i].rect.x;
+            origin.y = objectinfo.objects[i].rect.y;
+            cv::putText(image, text, origin, font_face, font_scale, cv::Scalar(0, 255, 255), thickness, 8, 0);
+                // cv::Rect r = cv::Rect(objectinfo.objects[i].rect.x, objectinfo.objects[i].rect.y, objectinfo.objects[i].rect.width, rectinfo.boxes[i].height);
+            cv::rectangle(image, objectinfo.objects[i].rect, cv::Scalar(255, 0, 0), 1, 8, 0);
+
+        }
+
+        cv::imshow("11",image);
+        cv::waitKey(0);
+        
+    } 
+   
+    return 0;
+}
+
+
+
 int Lane_demo()
 {
     cv::VideoCapture cap;
@@ -317,6 +370,74 @@ int DMS_demo()
 }
 
 
+int DMS_demo2()
+{
+
+
+    cv::Mat image=cv::imread("test1.jpg");
+    int n_frame=0;
+
+
+    while (1) {
+        
+        cv::Mat frame=image.clone();
+        if (n_frame>100)
+            break;
+        
+        M2::DMSState dms;
+        M2::LandmarkInfo landmarkinfo;
+        M2::ObjectInfo objectinfo;
+        M2_DMS(frame,objectinfo,landmarkinfo,dms);
+        
+        n_frame++;
+        
+        
+
+        cv::Scalar color;
+        if (dms.mouth_state==1 || dms.eye_state==1 || dms.face_state==1)
+        {
+            color[0]=0;
+            color[1]=0;
+            color[2]=255;
+        }else{
+            color[0]=0;
+            color[1]=255;
+            color[2]=0;
+        }
+
+
+        if (objectinfo.ObjectNum>0)
+        {
+            for(int i=0;i<objectinfo.ObjectNum;i++)
+            {
+                std::string text =std::to_string(int(objectinfo.objects[i].prob*100));
+                int font_face = cv::FONT_HERSHEY_COMPLEX;
+                double font_scale = 0.8;
+                int thickness = 1;
+                cv::Point origin;
+                origin.x = objectinfo.objects[i].rect.x+20;
+                origin.y = objectinfo.objects[i].rect.y+20;
+                cv::putText(frame, text, origin, font_face, font_scale, color, thickness, 8, 0);
+                cv::rectangle(frame, objectinfo.objects[i].rect, color, 1, 8, 0);
+            }
+
+            for(int i=0;i<landmarkinfo.numPoints;i++)
+            {
+                cv::Point p1(landmarkinfo.landmark[i].x ,landmarkinfo.landmark[i].y);
+                cv::circle(frame, p1, 1, color, -1);      
+            }
+        }
+
+        cv::imshow("dd",frame);
+        // exit(0);
+        cv::waitKey(0);
+        // wri << frame;
+    } 
+
+    return 0;
+}
+
+
 
 
 
@@ -324,8 +445,9 @@ int main(int argc, char *argv[])
 {
     
     // Lane_demo();
-    DMS_demo();
-    // ObjectD_demo();
+    // DMS_demo();
+    // ObjectD_demo2();
+    DMS_demo2();
 
     return 0;
 }
